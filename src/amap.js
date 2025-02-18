@@ -460,6 +460,7 @@
         injectScript('https://cdnjs.cloudflare.com/ajax/libs/layer/3.5.1/layer.min.js', true)
         injectCSS('https://cdnjs.cloudflare.com/ajax/libs/layer/3.5.1/theme/default/layer.min.css', true)
 
+        //#region UI
         const amapAppDownload = document.querySelector('#amapAppDownload')
         amapAppDownload.style.display = 'none'
 
@@ -644,7 +645,7 @@
 </div>
 `
         document.body.appendChild(parseDom(mouseToolPanelUI))
-
+        //#endregion
 
         const mouseToolDom = document.querySelector('[data-type="mouse-tool"]')
         const opratePanel = document.querySelector('.input-card')
@@ -673,7 +674,7 @@
                 if (overlays.length > 0) {
                     // 移除最后一个覆盖物
                     var lastOverlay = overlays.pop();
-                    lastOverlay.setMap(null);
+                    window.themap.remove(lastOverlay)
                 }
             }
         });
