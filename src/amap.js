@@ -398,6 +398,16 @@
   //#endregion
 
   //#region toast
+  window.addEventListener("load", () => {
+    injectScript(
+      "https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.js",
+      true
+    );
+    injectCSS(
+      "https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css",
+      true
+    );
+  });
   function toast(text, options) {
     Toastify({
       text,
@@ -487,16 +497,13 @@
   });
   //#endregion
 
-  //#region 鼠标工具-绘制覆盖物
   window.addEventListener("load", () => {
-    injectScript(
-      "https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.js",
-      true
-    );
-    injectCSS(
-      "https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css",
-      true
-    );
+    const initalOverlayIds = window.themap
+      .getAllOverlays()
+      .map((e) => e._amap_id);
+    const overlays = (window.overlays = []);
+
+    //#region 鼠标工具-绘制覆盖物
 
     //#region UI
     const amapAppDownload = document.querySelector("#amapAppDownload");
@@ -508,6 +515,30 @@
     document
       .querySelector("#layerbox_item .show-list")
       .appendChild(parseDom(mouseToolUI));
+
+    const mouseToolPanelUI = `
+    <div class="input-card" style='width: 17rem;'>
+        <div class="input-item">
+            <input type="radio" name='func' value='marker'><span class="input-text">画点</span>
+            <input type="radio" name='func' value='polyline'><span class="input-text">画折线</span>
+            <input type="radio" name='func' value='polygon'><span class="input-text" style='width:5rem;'>画多边形</span>
+        </div>
+        <div class="input-item">
+            <input type="radio" name='func' value='rectangle'><span class="input-text">画矩形</span>
+            <input type="radio" name='func' value='circle'><span class="input-text">画圆</span>
+            <input type="radio" name='func' value='area'><span class="input-text">测面积</span>
+        </div>
+        <div class="input-item" style="gap: 10px;">
+            <input id="clear" type="button" class="btn" value="清除" />
+            <input id="lock" type="button" class="btn" value="锁定" />
+            <input id="close" type="button" class="btn" value="关闭" />
+        </div>
+        <div class="input-item">
+            <input type="checkbox" checked name="autosave" value="autosave"><span class="input-text">自动保存</span>
+        </div>
+    </div>
+    `;
+    document.body.appendChild(parseDom(mouseToolPanelUI));
 
     //#region css
     injectCSS(`
@@ -666,30 +697,7 @@
 `);
     //#endregion css
 
-    const mouseToolPanelUI = `
-<div class="input-card" style='width: 17rem;'>
-    <div class="input-item">
-        <input type="radio" name='func' value='marker'><span class="input-text">画点</span>
-        <input type="radio" name='func' value='polyline'><span class="input-text">画折线</span>
-        <input type="radio" name='func' value='polygon'><span class="input-text" style='width:5rem;'>画多边形</span>
-    </div>
-    <div class="input-item">
-        <input type="radio" name='func' value='rectangle'><span class="input-text">画矩形</span>
-        <input type="radio" name='func' value='circle'><span class="input-text">画圆</span>
-        <input type="radio" name='func' value='area'><span class="input-text">测面积</span>
-    </div>
-    <div class="input-item" style="gap: 10px;">
-        <input id="clear" type="button" class="btn" value="清除" />
-        <input id="lock" type="button" class="btn" value="锁定" />
-        <input id="close" type="button" class="btn" value="关闭" />
-    </div>
-    <div class="input-item">
-        <input type="checkbox" checked name="autosave" value="autosave"><span class="input-text">自动保存</span>
-    </div>
-</div>
-`;
-    document.body.appendChild(parseDom(mouseToolPanelUI));
-    //#endregion
+    //#endregion UI
 
     const mouseToolDom = document.querySelector('[data-type="mouse-tool"]');
     const opratePanel = document.querySelector(".input-card");
@@ -701,96 +709,6 @@
       } else {
         opratePanel.style.display = "flex";
         mouseToolDom.classList.add("active");
-      }
-    });
-
-    setTimeout(() => {
-      initMouseTool();
-      document.querySelector('[name="autosave"]').checked &&
-        initLatestAutosave();
-    }, 1000);
-
-    const initalOverlayIds = window.themap
-      .getAllOverlays()
-      .map((e) => e._amap_id);
-    const overlays = (window.overlays = []);
-
-    //#region 圆圈附属元素相关
-    function updateCircleAttachment(
-      { obj, type },
-      radiusEndLngLat,
-      force = false,
-      originEvent = null
-    ) {
-      const ext = obj.getExtData() || {};
-      if (!force && ext.drawing) return;
-      if (!radiusEndLngLat) {
-        // 如果没有 radiusEndLngLat 说明是平移
-        // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
-        const curLnglat = originEvent.lnglat;
-        const center = obj.getCenter();
-        const raidus = obj.getRadius();
-        // 计算鼠标位置与圆心的经纬度差值
-        const dLng = curLnglat.getLng() - center.getLng();
-        const dLat = curLnglat.getLat() - center.getLat();
-        // 使用反正切函数计算角度（弧度）
-        const angle = Math.atan2(dLat, dLng); // 弧度
-        radiusEndLngLat = center.offset(
-          Math.cos(angle) * raidus,
-          Math.sin(angle) * raidus
-        );
-      }
-
-      const newCenter = obj.getCenter();
-
-      // 修正圆心点
-      ext.centerMarker.setPosition(newCenter);
-
-      // 半径线
-      ext.radiusMarker.setPath([newCenter, radiusEndLngLat]);
-
-      // 半径远端标点
-      ext.radiusLineEndMarker.setPosition(radiusEndLngLat);
-
-      // 半径长度
-      ext.radiusTextMarker.setPosition(
-        new AMap.LngLat(
-          (ext.radiusMarker.getPath()[0].getLng() +
-            ext.radiusMarker.getPath()[1].getLng()) /
-            2,
-          (ext.radiusMarker.getPath()[0].getLat() +
-            ext.radiusMarker.getPath()[1].getLat()) /
-            2
-        )
-      );
-      ext.radiusTextMarker.setText(
-        AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
-          "公里"
-      );
-    }
-    function handleCircleDragging(event) {
-      updateCircleAttachment(
-        { obj: event.target, type: event.type },
-        undefined,
-        false,
-        event
-      );
-    }
-    //#endregion 圆圈附属元素相关
-
-    // 添加键盘事件监听，实现撤销功能
-    document.addEventListener("keydown", function (e) {
-      // 检测是否按下Ctrl/Cmd+Z
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        e.preventDefault(); // 阻止浏览器默认的撤销行为
-        if (overlays.length > 0) {
-          // 移除最后一个覆盖物
-          var lastOverlay = overlays.pop();
-          window.themap.remove([
-            lastOverlay,
-            ...Object.values(lastOverlay.getExtData()),
-          ]);
-        }
       }
     });
 
@@ -977,6 +895,98 @@
         toast(`已经${lockOverlays()}`);
       };
     }
+
+    //#region 圆圈附属元素相关
+    function updateCircleAttachment(
+      { obj, type },
+      radiusEndLngLat,
+      force = false,
+      originEvent = null
+    ) {
+      const ext = obj.getExtData() || {};
+      if (!force && ext.drawing) return;
+      if (!radiusEndLngLat) {
+        // 如果没有 radiusEndLngLat 说明是平移
+        // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
+        const curLnglat = originEvent.lnglat;
+        const center = obj.getCenter();
+        const raidus = obj.getRadius();
+        // 计算鼠标位置与圆心的经纬度差值
+        const dLng = curLnglat.getLng() - center.getLng();
+        const dLat = curLnglat.getLat() - center.getLat();
+        // 使用反正切函数计算角度（弧度）
+        const angle = Math.atan2(dLat, dLng); // 弧度
+        radiusEndLngLat = center.offset(
+          Math.cos(angle) * raidus,
+          Math.sin(angle) * raidus
+        );
+      }
+
+      const newCenter = obj.getCenter();
+
+      // 修正圆心点
+      ext.centerMarker.setPosition(newCenter);
+
+      // 半径线
+      ext.radiusMarker.setPath([newCenter, radiusEndLngLat]);
+
+      // 半径远端标点
+      ext.radiusLineEndMarker.setPosition(radiusEndLngLat);
+
+      // 半径长度
+      ext.radiusTextMarker.setPosition(
+        new AMap.LngLat(
+          (ext.radiusMarker.getPath()[0].getLng() +
+            ext.radiusMarker.getPath()[1].getLng()) /
+            2,
+          (ext.radiusMarker.getPath()[0].getLat() +
+            ext.radiusMarker.getPath()[1].getLat()) /
+            2
+        )
+      );
+      ext.radiusTextMarker.setText(
+        AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
+          "公里"
+      );
+    }
+    function handleCircleDragging(event) {
+      updateCircleAttachment(
+        { obj: event.target, type: event.type },
+        undefined,
+        false,
+        event
+      );
+    }
+    //#endregion 圆圈附属元素相关
+
+    setTimeout(() => {
+      initMouseTool();
+    }, 1000);
+    //#endregion
+
+    //#region 撤销功能
+    // 添加键盘事件监听，实现撤销功能
+    document.addEventListener("keydown", function (e) {
+      // 检测是否按下Ctrl/Cmd+Z
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault(); // 阻止浏览器默认的撤销行为
+        if (overlays.length > 0) {
+          // 移除最后一个覆盖物
+          var lastOverlay = overlays.pop();
+          window.themap.remove([
+            lastOverlay,
+            ...Object.values(lastOverlay.getExtData()),
+          ]);
+        }
+      }
+    });
+    //#endregion 撤销功能
+
+    //#region 自动保存 自动加载
+    setTimeout(() => {
+      document.querySelector('[name="autosave"]').checked &&
+        initLatestAutosave();
+    }, 1000);
     function initLatestAutosave() {
       if (!localStorage.getItem(SAVE_DATA_STORAGE_KEY)) return;
       const data = JSON.parse(localStorage.getItem(SAVE_DATA_STORAGE_KEY));
@@ -1013,6 +1023,8 @@
         .map((e) => JSON.parse(e));
       localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
     });
+
+    //#endregion 自动保存 自动加载
 
     //#region AMap 对象序列化
     hackAMapObjectSerialize();
@@ -1102,6 +1114,4 @@
 
     //#endregion
   });
-
-  //#endregion
 })();
