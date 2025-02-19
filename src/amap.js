@@ -14,6 +14,9 @@
 // @resource        toastify.min.css https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css
 // @resource        viewer.min.css https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css
 // ==/UserScript==
+// @docs            https://lbs.amap.com/api/javascript-api-v2/summary
+// @docs            https://a.amap.com/jsapi/static/doc/20210906/index.html
+// @docs            https://www.tampermonkey.net/documentation.php
 
 //#region globalVar
 const initalOverlayIds = [];
