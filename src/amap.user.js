@@ -877,6 +877,7 @@ function setupMouseToolEvents() {
         themap._mouseTool.polyline({
           draggable: getLockState(),
           strokeColor: "#80d8ff",
+          isOutline: true,
           //同Polyline的Option设置
         });
         break;
