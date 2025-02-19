@@ -1,5 +1,7 @@
 # amap-enhanced
 
+[🚀立即体验](https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.user.js)
+
 高德地图增强插件 - 为高德地图网页版添加更多实用功能
 
 ## 功能特性
