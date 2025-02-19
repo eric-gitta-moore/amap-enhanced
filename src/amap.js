@@ -15,313 +15,367 @@
 // @resource        viewer.min.css https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css
 // ==/UserScript==
 
+//#region globalVar
+const initalOverlayIds = [];
+const overlays = [];
+const SAVE_DATA_STORAGE_KEY = "SAVE_DATA_STORAGE_KEY";
+//#endregion globalVar
+
+//#region utils
+function setupUtils() {
+  function parseDom(str) {
+    return Document.parseHTMLUnsafe(str).body.childNodes[0];
+  }
+
+  function toast(text, options) {
+    Toastify({
+      text,
+      position: "center",
+      ...options,
+    }).showToast();
+  }
+  return {
+    parseDom,
+    toast,
+  };
+}
+const { parseDom, toast } = setupUtils();
+//#endregion utils
+
 //#region injectCSS
-window.addEventListener("load", () => {
-  GM_addStyle(GM_getResourceText("toastify.min.css"));
-  GM_addStyle(GM_getResourceText("viewer.min.css"));
-  GM_addStyle(
-    `
-.favphoto::-webkit-scrollbar { 
-    /* 隐藏默认的滚动条 */
-    -webkit-appearance: none;
-}
-
-
-.favphoto::-webkit-scrollbar:horizontal{
-    /* 设置水平滚动条厚度 */
-    height: 5px;
-}
-
-.favphoto::-webkit-scrollbar-thumb { 
-    /* 滚动条的其他样式定制，注意，这个一定也要定制，否则就是一个透明的滚动条 */
-    border-radius: 8px; 
-    /* border: 2px solid rgba(255,255,255,.4);  */
-    background-color: rgba(0, 0, 0, .5);
-}
-
-.favphoto {
-    display: flex;
-    overflow-x: auto;
-    gap: 8px;
-}
-
-.favphoto img {
-    width: 50px;
-    object-fit: cover;
-}
-`
-  );
-  GM_addStyle(
-    `
-.amap-copyright {
-    display: none !important;
-}
-.input-item {
-    position: relative;
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    width: 100%;
-    height: 3rem;
-}
-
-.input-item:last-child {
-    margin-bottom: 0;
-}
-
-.input-item>select, .input-item>input[type=text], .input-item>input[type=date] {
-    position: relative;
-    -ms-flex: 1 1 auto;
-    flex: 1 1 auto;
-    width: 1%;
-    margin-bottom: 0;
-}
-
-.input-item>select:not(:last-child), .input-item>input[type=text]:not(:last-child), .input-item>input[type=date]:not(:last-child) {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0
-}
-
-.input-item>select:not(:first-child), .input-item>input[type=text]:not(:first-child), .input-item>input[type=date]:not(:first-child) {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0
-}
-
-.input-item-prepend {
-    margin-right: -1px;
-}
-
-.input-item-text, input[type=text],input[type=date], select {
-    height: calc(2.2rem + 2px);
-}
-
-.input-item-text {
-    width: 6rem;
-    text-align: justify;
-    padding: 0.4rem 0.7rem;
+function setupInjectCSS() {
+  window.addEventListener("load", () => {
+    GM_addStyle(GM_getResourceText("toastify.min.css"));
+    GM_addStyle(GM_getResourceText("viewer.min.css"));
+    GM_addStyle(
+      `
+  .favphoto::-webkit-scrollbar { 
+      /* 隐藏默认的滚动条 */
+      -webkit-appearance: none;
+  }
+  
+  
+  .favphoto::-webkit-scrollbar:horizontal{
+      /* 设置水平滚动条厚度 */
+      height: 5px;
+  }
+  
+  .favphoto::-webkit-scrollbar-thumb { 
+      /* 滚动条的其他样式定制，注意，这个一定也要定制，否则就是一个透明的滚动条 */
+      border-radius: 8px; 
+      /* border: 2px solid rgba(255,255,255,.4);  */
+      background-color: rgba(0, 0, 0, .5);
+  }
+  
+  .favphoto {
+      display: flex;
+      overflow-x: auto;
+      gap: 8px;
+  }
+  
+  .favphoto img {
+      width: 50px;
+      object-fit: cover;
+  }
+  `
+    );
+    GM_addStyle(
+      `
+  .amap-copyright {
+      display: none !important;
+  }
+  .input-item {
+      position: relative;
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      width: 100%;
+      height: 3rem;
+  }
+  
+  .input-item:last-child {
+      margin-bottom: 0;
+  }
+  
+  .input-item>select, .input-item>input[type=text], .input-item>input[type=date] {
+      position: relative;
+      -ms-flex: 1 1 auto;
+      flex: 1 1 auto;
+      width: 1%;
+      margin-bottom: 0;
+  }
+  
+  .input-item>select:not(:last-child), .input-item>input[type=text]:not(:last-child), .input-item>input[type=date]:not(:last-child) {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0
+  }
+  
+  .input-item>select:not(:first-child), .input-item>input[type=text]:not(:first-child), .input-item>input[type=date]:not(:first-child) {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0
+  }
+  
+  .input-item-prepend {
+      margin-right: -1px;
+  }
+  
+  .input-item-text, input[type=text],input[type=date], select {
+      height: calc(2.2rem + 2px);
+  }
+  
+  .input-item-text {
+      width: 6rem;
+      text-align: justify;
+      padding: 0.4rem 0.7rem;
+      display: inline-block;
+      text-justify: distribute-all-lines;
+      /*ie6-8*/
+      text-align-last: justify;
+      /* ie9*/
+      -moz-text-align-last: justify;
+      /*ff*/
+      -webkit-text-align-last: justify;
+      /*chrome 20+*/
+      -ms-flex-align: center;
+      align-items: center;
+      margin-bottom: 0;
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #495057;
+      text-align: center;
+      white-space: nowrap;
+      background-color: #e9ecef;
+      border: 1px solid #ced4da;
+      border-radius: .25rem;
+      border-bottom-right-radius: 0;
+      border-top-right-radius: 0;
+  }
+  
+  .input-item-text input[type=checkbox], .input-item-text input[type=radio] {
+      margin-top: 0
+  }
+  
+  .input-card {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      word-wrap: break-word;
+      background-color: #fff;
+      background-clip: border-box;
+      border-radius: .25rem;
+      width: 22rem;
+      border-width: 0;
+      border-radius: 0.4rem;
+      box-shadow: 0 2px 6px 0 rgba(114, 124, 245, .5);
+      position: fixed;
+      bottom: 1rem;
+      right: 5rem;
+      -ms-flex: 1 1 auto;
+      flex: 1 1 auto;
+      padding: 0.55rem 0.75rem;
+  }
+  
+  .input-text {
+      line-height: 2rem;
+      margin-right: 2rem;
+  }
+  
+  .btn {
     display: inline-block;
-    text-justify: distribute-all-lines;
-    /*ie6-8*/
-    text-align-last: justify;
-    /* ie9*/
-    -moz-text-align-last: justify;
-    /*ff*/
-    -webkit-text-align-last: justify;
-    /*chrome 20+*/
-    -ms-flex-align: center;
-    align-items: center;
-    margin-bottom: 0;
-    font-size: 1rem;
     font-weight: 400;
-    line-height: 1.5;
-    color: #495057;
     text-align: center;
     white-space: nowrap;
-    background-color: #e9ecef;
-    border: 1px solid #ced4da;
-    border-radius: .25rem;
-    border-bottom-right-radius: 0;
-    border-top-right-radius: 0;
+    vertical-align: middle;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    background-color: transparent;
+    background-image: none;
+    color: #25A5F7;
+    border-color: #25A5F7;
+    padding: .25rem .5rem;
+    line-height: 1.5;
+    border-radius: 1rem;
+    -webkit-appearance: button;
+    cursor:pointer;
+  }
+  
+  .btn:hover {
+    color: #fff;
+    background-color: #25A5F7;
+    border-color: #25A5F7
+  }
+  
+  .btn:hover {
+    text-decoration: none
+  }
+  
+  .input-item{
+    height: 2.2rem;
+  }
+  .btn{
+    flex: 1;
+  
+  }
+  .input-text{
+    width: 3rem;
+    margin-right: .5rem;
+  }
+  .input-card input[type=checkbox], input[type=radio] {
+    box-sizing: border-box;
+    padding: 0;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0 0.5rem 0 0;
+  }
+  `
+    );
+  });
 }
-
-.input-item-text input[type=checkbox], .input-item-text input[type=radio] {
-    margin-top: 0
-}
-
-.input-card {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    word-wrap: break-word;
-    background-color: #fff;
-    background-clip: border-box;
-    border-radius: .25rem;
-    width: 22rem;
-    border-width: 0;
-    border-radius: 0.4rem;
-    box-shadow: 0 2px 6px 0 rgba(114, 124, 245, .5);
-    position: fixed;
-    bottom: 1rem;
-    right: 5rem;
-    -ms-flex: 1 1 auto;
-    flex: 1 1 auto;
-    padding: 0.55rem 0.75rem;
-}
-
-.input-text {
-    line-height: 2rem;
-    margin-right: 2rem;
-}
-
-.btn {
-  display: inline-block;
-  font-weight: 400;
-  text-align: center;
-  white-space: nowrap;
-  vertical-align: middle;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  border: 1px solid transparent;
-  transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-  background-color: transparent;
-  background-image: none;
-  color: #25A5F7;
-  border-color: #25A5F7;
-  padding: .25rem .5rem;
-  line-height: 1.5;
-  border-radius: 1rem;
-  -webkit-appearance: button;
-  cursor:pointer;
-}
-
-.btn:hover {
-  color: #fff;
-  background-color: #25A5F7;
-  border-color: #25A5F7
-}
-
-.btn:hover {
-  text-decoration: none
-}
-
-.input-item{
-  height: 2.2rem;
-}
-.btn{
-  flex: 1;
-
-}
-.input-text{
-  width: 3rem;
-  margin-right: .5rem;
-}
-.input-card input[type=checkbox], input[type=radio] {
-  box-sizing: border-box;
-  padding: 0;
-  -webkit-box-sizing: border-box;
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0 0.5rem 0 0;
-}
-`
-  );
-});
+setupInjectCSS();
 //#endregion injectCSS
 
-//#region library
-// 请求拦截器注册中心
-const interceptorRegistry = {
-  xhr: [],
-  fetch: [],
-};
+//#region interceptors
+function setupInterceptors() {
+  // 请求拦截器注册中心
+  const interceptorRegistry = {
+    xhr: [],
+    fetch: [],
+  };
 
-// 注册XHR拦截器
-function registerXHRInterceptor(checker, handler) {
-  interceptorRegistry.xhr.push({
-    checker: checker,
-    handler: handler,
-  });
-}
+  // 注册XHR拦截器
+  function registerXHRInterceptor(checker, handler) {
+    interceptorRegistry.xhr.push({
+      checker: checker,
+      handler: handler,
+    });
+  }
 
-// 注册Fetch拦截器
-function registerFetchInterceptor(checker, handler) {
-  interceptorRegistry.fetch.push({
-    checker: checker,
-    handler: handler,
-  });
-}
+  // 注册Fetch拦截器
+  function registerFetchInterceptor(checker, handler) {
+    interceptorRegistry.fetch.push({
+      checker: checker,
+      handler: handler,
+    });
+  }
 
-// 执行XHR拦截器
-function executeXHRInterceptors(xhr) {
-  if (xhr.responseType === "" || xhr.responseType === "text") {
-    for (const interceptor of interceptorRegistry.xhr) {
-      if (interceptor.checker(xhr)) {
-        const response = interceptor.handler(xhr);
-        if (response) {
-          Object.defineProperty(xhr, "response", {
-            writable: true,
-            value: response,
-          });
-          Object.defineProperty(xhr, "responseText", {
-            writable: true,
-            value: xhr.response,
-          });
-          break;
+  // 执行XHR拦截器
+  function executeXHRInterceptors(xhr) {
+    if (xhr.responseType === "" || xhr.responseType === "text") {
+      for (const interceptor of interceptorRegistry.xhr) {
+        if (interceptor.checker(xhr)) {
+          const response = interceptor.handler(xhr);
+          if (response) {
+            Object.defineProperty(xhr, "response", {
+              writable: true,
+              value: response,
+            });
+            Object.defineProperty(xhr, "responseText", {
+              writable: true,
+              value: xhr.response,
+            });
+            break;
+          }
         }
       }
     }
   }
-}
 
-// 执行Fetch拦截器
-async function executeFetchInterceptors(input, init) {
-  for (const interceptor of interceptorRegistry.fetch) {
-    if (interceptor.checker(input, init)) {
-      const response = await interceptor.handler(input, init);
-      if (response) {
-        return new Response(response.data, {
-          status: response.status || 200,
-          headers: response.headers || {
-            "Content-Type": "application/json",
-          },
-        });
+  // 执行Fetch拦截器
+  async function executeFetchInterceptors(input, init) {
+    for (const interceptor of interceptorRegistry.fetch) {
+      if (interceptor.checker(input, init)) {
+        const response = await interceptor.handler(input, init);
+        if (response) {
+          return new Response(response.data, {
+            status: response.status || 200,
+            headers: response.headers || {
+              "Content-Type": "application/json",
+            },
+          });
+        }
       }
     }
+    return null;
   }
-  return null;
-}
 
-// 保存原始的 XMLHttpRequest
-const originalXHR = unsafeWindow.XMLHttpRequest;
+  // 保存原始的 XMLHttpRequest
+  const originalXHR = unsafeWindow.XMLHttpRequest;
 
-// 创建新的 XMLHttpRequest 构造函数
-unsafeWindow.XMLHttpRequest = function () {
-  const xhr = new originalXHR();
-  const originalOpen = xhr.open;
-  const originalSend = xhr.send;
+  // 创建新的 XMLHttpRequest 构造函数
+  unsafeWindow.XMLHttpRequest = function () {
+    const xhr = new originalXHR();
+    const originalOpen = xhr.open;
+    const originalSend = xhr.send;
 
-  // 重写 open 方法
-  xhr.open = function () {
-    this.method = arguments[0];
-    this.url = arguments[1];
-    return originalOpen.apply(this, arguments);
-  };
-
-  // 重写 send 方法
-  xhr.send = function () {
-    const originalOnReadyStateChange = xhr.onreadystatechange;
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        executeXHRInterceptors(xhr);
-      }
-      if (originalOnReadyStateChange) {
-        originalOnReadyStateChange.apply(this, arguments);
-      }
+    // 重写 open 方法
+    xhr.open = function () {
+      this.method = arguments[0];
+      this.url = arguments[1];
+      return originalOpen.apply(this, arguments);
     };
-    return originalSend.apply(this, arguments);
+
+    // 重写 send 方法
+    xhr.send = function () {
+      const originalOnReadyStateChange = xhr.onreadystatechange;
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          executeXHRInterceptors(xhr);
+        }
+        if (originalOnReadyStateChange) {
+          originalOnReadyStateChange.apply(this, arguments);
+        }
+      };
+      return originalSend.apply(this, arguments);
+    };
+
+    return xhr;
   };
 
-  return xhr;
-};
+  // 保存原始的 fetch
+  const originalFetch = unsafeWindow.fetch;
 
-// 保存原始的 fetch
-const originalFetch = unsafeWindow.fetch;
+  // 重写 fetch
+  unsafeWindow.fetch = async function (input, init) {
+    const interceptedResponse = await executeFetchInterceptors(input, init);
+    if (interceptedResponse) {
+      return interceptedResponse;
+    }
+    return originalFetch(input, init);
+  };
 
-// 重写 fetch
-unsafeWindow.fetch = async function (input, init) {
-  const interceptedResponse = await executeFetchInterceptors(input, init);
-  if (interceptedResponse) {
-    return interceptedResponse;
-  }
-  return originalFetch(input, init);
-};
-
-function parseDom(str) {
-  return Document.parseHTMLUnsafe(str).body.childNodes[0];
+  return {
+    registerFetchInterceptor,
+    registerXHRInterceptor,
+  };
 }
-const favListTpl = `
+const { registerFetchInterceptor, registerXHRInterceptor } =
+  setupInterceptors();
+// registerFetchInterceptor(
+//     (input, init) => {
+//         const url = typeof input === 'string' ? input : input.url;
+//         return url.includes('/api/example');
+//     },
+//     async function(input, init) {
+//         return {
+//             status: 200,
+//             data: {
+//                 modified: true,
+//                 message: '这是一个被拦截的Fetch请求'
+//             }
+//         };
+//     }
+// );
+//#endregion interceptors
+
+//#region template
+function setupTemplate() {
+  const favListTpl = `
 <%
 	var infoArray = obj.items && obj.items.length > 0 ? obj.items : false;
 %>
@@ -450,7 +504,7 @@ const favListTpl = `
 
 `;
 
-const favInfoWindowTpl = `
+  const favInfoWindowTpl = `
     
 
 <%
@@ -518,527 +572,139 @@ const favInfoWindowTpl = `
 </div>
 `;
 
-const redDotContent =
-  '<div style="width: 6px; height: 6px; background-color: #f00; border-radius: 50%;user-select: none;"></div>';
-// registerFetchInterceptor(
-//     (input, init) => {
-//         const url = typeof input === 'string' ? input : input.url;
-//         return url.includes('/api/example');
-//     },
-//     async function(input, init) {
-//         return {
-//             status: 200,
-//             data: {
-//                 modified: true,
-//                 message: '这是一个被拦截的Fetch请求'
-//             }
-//         };
-//     }
-// );
-//#endregion library
-
-//#region toast
-function toast(text, options) {
-  Toastify({
-    text,
-    position: "center",
-    ...options,
-  }).showToast();
-}
-//#endregion toast
-
-//#region 鼠标数据
-const cursorData = {
-  lnglat: null,
-  pixel: null,
-  pos: null,
-};
-window.addEventListener("load", () => {
-  themap.on("mousemove", (e) => {
-    cursorData.lnglat = e.lnglat;
-    cursorData.pixel = e.pixel;
-    cursorData.pos = e.pos;
-  });
-});
-//#endregion
-
-//#region 处理收藏图片显示
-const jsonApi = "/service/fav/getFav";
-const favListTplApi = "/assets/biz/faves/tpl/fav.list.html";
-const favInfoWindowTplApi = "/assets/tpl/canvas-favinfowindow.html";
-
-registerXHRInterceptor(
-  (xhr) => xhr.url.includes(favListTplApi),
-  (xhr) => favListTpl
-);
-registerXHRInterceptor(
-  (xhr) => xhr.url.includes(favInfoWindowTplApi),
-  (xhr) => favInfoWindowTpl
-);
-
-// 查询 favInfo
-unsafeWindow.findFavInfo = (id) => {
-  if (!amap?.faves?.items)
-    return {
-      item_desc: null,
-      item_id: null,
-      id,
-      item_pictures_info: null,
-    };
-  const data = amap.faves.items.find((e) => e.id === id).data;
-  return {
-    item_desc: data?.item_desc,
-    item_id: data?.item_id,
-    id,
-    item_pictures_info: data?.item_pictures_info || [],
-  };
-};
-
-// viewjs 图片查看器
-const viewjsInstances = [];
-const refreshViewjs = () => {
-  const stopCb = (e) => (e.preventDefault(), e.stopPropagation());
-  viewjsInstances.forEach((e) => e.destroy());
-  viewjsInstances.length = 0;
-  for (const e of document.querySelectorAll(".favphoto")) {
-    e.removeEventListener("click", stopCb);
-    e.addEventListener("click", stopCb);
-    viewjsInstances.push(
-      new Viewer(e, {
-        zIndex: 99999,
-      })
-    );
-  }
-};
-unsafeWindow.refreshViewjs = refreshViewjs;
-
-// 监听图片点击
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    refreshViewjs();
-  }, 1000);
-});
-//#endregion
-
-window.addEventListener("load", () => {
-  const initalOverlayIds = themap.getAllOverlays().map((e) => e._amap_id);
-  const overlays = [];
-
-  //#region 工具面板
-
-  //#region UI
-  const amapAppDownload = document.querySelector("#amapAppDownload");
-  amapAppDownload.style.display = "none";
+  const redDotContent =
+    '<div style="width: 6px; height: 6px; background-color: #f00; border-radius: 50%;user-select: none;"></div>';
 
   const mouseToolUI = `
 <a class="item active" data-type="mouse-tool" href="javascript:void(0)"> <span class="icon"> <i class="iconfont icon-iconshoucangjia"></i> </span> <span class="name">工具</span>  </a>
 `;
-  document
-    .querySelector("#layerbox_item .show-list")
-    .appendChild(parseDom(mouseToolUI));
-
   const mouseToolPanelUI = `
-    <div class="input-card" style='width: 17rem;'>
-        <div class="input-item">
-            <input type="radio" name='func' value='marker'><span class="input-text">画点</span>
-            <input type="radio" name='func' value='polyline'><span class="input-text">画折线</span>
-            <input type="radio" name='func' value='polygon'><span class="input-text" style='width:5rem;'>画多边形</span>
-        </div>
-        <div class="input-item">
-            <input type="radio" name='func' value='rectangle'><span class="input-text">画矩形</span>
-            <input type="radio" name='func' value='circle'><span class="input-text">画圆</span>
-            <input type="radio" name='func' value='area'><span class="input-text">测面积</span>
-        </div>
-        <div class="input-item" style="gap: 10px;">
-            <input id="hide-lays" type="button" class="btn" value="隐藏" />
-            <input id="clear" type="button" class="btn" value="清除" />
-            <input id="lock" type="button" class="btn" value="锁定" />
-            <input id="fit-view" type="button" class="btn" value="自动缩放" />
-        </div>
-        <div class="input-item">
-            <input type="checkbox" checked name="autosave" value="autosave"><span class="input-text">自动保存</span>
-        </div>
-    </div>
-    `;
-  document.body.appendChild(parseDom(mouseToolPanelUI));
+  <div class="input-card" style='width: 17rem;'>
+      <div class="input-item">
+          <input type="radio" name='func' value='marker'><span class="input-text">画点</span>
+          <input type="radio" name='func' value='polyline'><span class="input-text">画折线</span>
+          <input type="radio" name='func' value='polygon'><span class="input-text" style='width:5rem;'>画多边形</span>
+      </div>
+      <div class="input-item">
+          <input type="radio" name='func' value='rectangle'><span class="input-text">画矩形</span>
+          <input type="radio" name='func' value='circle'><span class="input-text">画圆</span>
+          <input type="radio" name='func' value='area'><span class="input-text">测面积</span>
+      </div>
+      <div class="input-item" style="gap: 10px;">
+          <input id="hide-lays" type="button" class="btn" value="隐藏" />
+          <input id="clear" type="button" class="btn" value="清除" />
+          <input id="lock" type="button" class="btn" value="锁定" />
+          <input id="fit-view" type="button" class="btn" value="自动缩放" />
+      </div>
+      <div class="input-item">
+          <input type="checkbox" checked name="autosave" value="autosave"><span class="input-text">自动保存</span>
+      </div>
+  </div>
+  `;
+  return {
+    favListTpl,
+    favInfoWindowTpl,
+    redDotContent,
+    mouseToolPanelUI,
+    mouseToolUI,
+  };
+}
+const {
+  favListTpl,
+  favInfoWindowTpl,
+  redDotContent,
+  mouseToolPanelUI,
+  mouseToolUI,
+} = setupTemplate();
+//#endregion template
 
-  //#endregion UI
-
-  const mouseToolDom = document.querySelector('[data-type="mouse-tool"]');
-  const opratePanel = document.querySelector(".input-card");
-  mouseToolDom.addEventListener("click", () => {
-    const isShow = opratePanel.style.display !== "none";
-    if (isShow) {
-      opratePanel.style.display = "none";
-      mouseToolDom.classList.remove("active");
-    } else {
-      opratePanel.style.display = "flex";
-      mouseToolDom.classList.add("active");
-    }
+//#region 实时鼠标数据
+function setupCursorData() {
+  const cursorData = {
+    lnglat: null,
+    pixel: null,
+    pos: null,
+  };
+  window.addEventListener("load", () => {
+    themap.on("mousemove", (e) => {
+      cursorData.lnglat = e.lnglat;
+      cursorData.pixel = e.pixel;
+      cursorData.pos = e.pos;
+    });
   });
+  return { cursorData };
+}
+const { cursorData } = setupCursorData();
+//#endregion 实时鼠标数据
 
-  //#region utils
-  function getLockState() {
-    const lockDom = document.getElementById("lock");
-    const nextState = lockDom.value;
-    return nextState === "锁定";
-  }
-  function lockOverlays() {
-    const lockDom = document.getElementById("lock");
-    const nextState = lockDom.value;
-    const locked = nextState === "锁定";
-    overlays.map((item) => {
-      item.setOptions({
-        draggable: locked ? false : true,
-      });
-    });
-    lockDom.value = locked ? "解锁" : "锁定";
-    return nextState;
-  }
-  //#endregion utils
+//#region 处理收藏图片显示模版和预览
+// 我的收藏 模版替换
+function setupTplInterceptors() {
+  const jsonApi = "/service/fav/getFav";
+  const favListTplApi = "/assets/biz/faves/tpl/fav.list.html";
+  const favInfoWindowTplApi = "/assets/tpl/canvas-favinfowindow.html";
 
-  //#region 工具控制面板事件
-  let mouseTool = null;
-  function closeMouseTool() {
-    mouseTool.close(false);
-    var radios = document.getElementsByName("func");
-    for (var i = 0; i < radios.length; i += 1) {
-      radios[i].checked = false;
-    }
-  }
-  document.getElementById("clear").onclick = function () {
-    themap.remove(overlays);
-    overlays.splice(0, overlays.length);
-  };
-  document.getElementById("lock").onclick = function (e) {
-    toast(`已经${lockOverlays()}`);
-  };
-  document.getElementById("hide-lays").onclick = function (e) {
-    const nextState = e.target.value;
-    const hide = nextState === "隐藏";
-    if (hide) overlays.map((e) => e.hide());
-    else overlays.map((e) => e.show());
-    e.target.value = hide ? "显示" : "隐藏";
-  };
-  document.getElementById("fit-view").onclick = function () {
-    themap.setFitView(overlays);
-  };
-  //#endregion 工具控制面板事件
+  registerXHRInterceptor(
+    (xhr) => xhr.url.includes(favListTplApi),
+    (xhr) => favListTpl
+  );
+  registerXHRInterceptor(
+    (xhr) => xhr.url.includes(favInfoWindowTplApi),
+    (xhr) => favInfoWindowTpl
+  );
 
-  function initMouseTool() {
-    mouseTool = new AMap.MouseTool(themap);
-
-    //监听draw事件可获取画好的覆盖物
-    mouseTool.on("drawing", ({ obj, type }) => {
-      const ext = obj.getExtData() || {};
-      obj.setExtData({ ...ext, drawing: true });
-
-      if (obj.className === "Overlay.Circle") {
-        const thisMap = obj.getMap();
-
-        if (!ext.centerMarker) {
-          // 创建圆心
-          const centerMarker = new AMap.Marker({
-            position: obj.getCenter(),
-            content: redDotContent,
-            offset: new AMap.Pixel(-3, -3),
-          });
-
-          // 创建半径
-          const radiusMarker = new AMap.Polyline({
-            path: [obj.getCenter(), cursorData.lnglat],
-            strokeColor: "blue",
-            strokeStyle: "dashed",
-          });
-
-          // 创建半径终点 marker
-          const radiusLineEndMarker = new AMap.Marker({
-            position: cursorData.lnglat,
-            content: redDotContent,
-            offset: new AMap.Pixel(-3, -3),
-          });
-
-          // 创建半径大小描述
-          const radiusTextMarker = new AMap.Text({
-            position: new AMap.LngLat(
-              (radiusLineEndMarker.getPosition().getLng() +
-                obj.getCenter().getLng()) /
-                2,
-              (radiusLineEndMarker.getPosition().getLat() +
-                obj.getCenter().getLat()) /
-                2
-            ),
-            text:
-              AMap.GeometryUtil.distance(
-                obj.getCenter(),
-                cursorData.lnglat
-              ).toFixed(2) + "公里",
-            offset: new AMap.Pixel(-10, -10),
-          });
-
-          obj.setExtData({
-            ...ext,
-            centerMarker,
-            radiusMarker,
-            radiusLineEndMarker,
-            radiusTextMarker,
-          });
-          thisMap.add([
-            centerMarker,
-            radiusMarker,
-            radiusLineEndMarker,
-            radiusTextMarker,
-          ]);
-          overlays.push(
-            centerMarker,
-            radiusMarker,
-            radiusLineEndMarker,
-            radiusTextMarker
-          );
-
-          if (!obj.hasEvents("dragging", handleCircleDragging))
-            obj.on("dragging", handleCircleDragging);
-        } else {
-          // 更新半径
-          updateCircleAttachment({ obj, type }, cursorData.lnglat, true);
-        }
-      }
-    });
-    mouseTool.on("draw", function ({ obj, type }) {
-      obj.setExtData({ ...obj.getExtData(), drawing: false });
-      overlays.push(obj);
-      closeMouseTool();
-    });
-
-    function draw(type) {
-      switch (type) {
-        case "marker": {
-          mouseTool.marker({
-            draggable: getLockState(),
-            //同Marker的Option设置
-          });
-          break;
-        }
-        case "polyline": {
-          mouseTool.polyline({
-            draggable: getLockState(),
-            strokeColor: "#80d8ff",
-            //同Polyline的Option设置
-          });
-          break;
-        }
-        case "polygon": {
-          mouseTool.polygon({
-            fillColor: "#00b0ff",
-            draggable: getLockState(),
-            strokeColor: "#80d8ff",
-            bubble: true,
-            //同Polygon的Option设置
-          });
-          break;
-        }
-        case "rectangle": {
-          mouseTool.rectangle({
-            fillColor: "#00b0ff",
-            draggable: getLockState(),
-            strokeColor: "#80d8ff",
-            bubble: true,
-            //同Polygon的Option设置
-          });
-          break;
-        }
-        case "circle": {
-          mouseTool.circle({
-            strokeColor: "red",
-            strokeStyle: "dashed",
-            fillOpacity: 0,
-            draggable: getLockState(),
-            bubble: true,
-            //同Circle的Option设置
-          });
-          break;
-        }
-        case "area": {
-          mouseTool.measureArea({
-            fillColor: "#00b0ff",
-            strokeColor: "#80d8ff",
-            bubble: true,
-            draggable: getLockState(),
-            //同Circle的Option设置
-          });
-          break;
-        }
-      }
-    }
-    var radios = document.getElementsByName("func");
-    for (var i = 0; i < radios.length; i += 1) {
-      radios[i].onchange = function (e) {
-        draw(e.target.value);
+  // 查询 favInfo
+  unsafeWindow.findFavInfo = (id) => {
+    if (!amap?.faves?.items)
+      return {
+        item_desc: null,
+        item_id: null,
+        id,
+        item_pictures_info: null,
       };
-    }
-  }
+    const data = amap.faves.items.find((e) => e.id === id).data;
+    return {
+      item_desc: data?.item_desc,
+      item_id: data?.item_id,
+      id,
+      item_pictures_info: data?.item_pictures_info || [],
+    };
+  };
+}
+setupTplInterceptors();
 
-  //#region 圆圈附属元素相关
-  function updateCircleAttachment(
-    { obj, type },
-    radiusEndLngLat,
-    force = false,
-    originEvent = null
-  ) {
-    const ext = obj.getExtData() || {};
-    if (!force && ext.drawing) return;
-    if (!radiusEndLngLat) {
-      // 如果没有 radiusEndLngLat 说明是平移
-      // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
-      const curLnglat = originEvent.lnglat;
-      const center = obj.getCenter();
-      const raidus = obj.getRadius();
-      // 计算鼠标位置与圆心的经纬度差值
-      const dLng = curLnglat.getLng() - center.getLng();
-      const dLat = curLnglat.getLat() - center.getLat();
-      // 使用反正切函数计算角度（弧度）
-      const angle = Math.atan2(dLat, dLng); // 弧度
-      radiusEndLngLat = center.offset(
-        Math.cos(angle) * raidus,
-        Math.sin(angle) * raidus
+// viewjs 图片查看器
+function setupViewjs() {
+  // viewjs 图片查看器
+  const viewjsInstances = [];
+  const refreshViewjs = () => {
+    const stopCb = (e) => (e.preventDefault(), e.stopPropagation());
+    viewjsInstances.forEach((e) => e.destroy());
+    viewjsInstances.length = 0;
+    for (const e of document.querySelectorAll(".favphoto")) {
+      e.removeEventListener("click", stopCb);
+      e.addEventListener("click", stopCb);
+      viewjsInstances.push(
+        new Viewer(e, {
+          zIndex: 99999,
+        })
       );
     }
+  };
+  unsafeWindow.refreshViewjs = refreshViewjs;
 
-    const newCenter = obj.getCenter();
-
-    // 修正圆心点
-    ext.centerMarker.setPosition(newCenter);
-
-    // 半径线
-    ext.radiusMarker.setPath([newCenter, radiusEndLngLat]);
-
-    // 半径远端标点
-    ext.radiusLineEndMarker.setPosition(radiusEndLngLat);
-
-    // 半径长度
-    ext.radiusTextMarker.setPosition(
-      new AMap.LngLat(
-        (ext.radiusMarker.getPath()[0].getLng() +
-          ext.radiusMarker.getPath()[1].getLng()) /
-          2,
-        (ext.radiusMarker.getPath()[0].getLat() +
-          ext.radiusMarker.getPath()[1].getLat()) /
-          2
-      )
-    );
-    ext.radiusTextMarker.setText(
-      AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
-        "公里"
-    );
-  }
-  function handleCircleDragging(event) {
-    updateCircleAttachment(
-      { obj: event.target, type: event.type },
-      undefined,
-      false,
-      event
-    );
-  }
-  //#endregion 圆圈附属元素相关
-
-  setTimeout(() => {
-    initMouseTool();
-  }, 1000);
-  //#endregion 工具面板
-
-  //#region 撤销功能
-  // 添加键盘事件监听，实现撤销功能
-  document.addEventListener("keydown", function (e) {
-    // 检测是否按下Ctrl/Cmd+Z
-    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-      e.preventDefault(); // 阻止浏览器默认的撤销行为
-      if (overlays.length > 0) {
-        // 移除最后一个覆盖物
-        var lastOverlay = overlays.pop();
-        themap.remove([
-          lastOverlay,
-          ...Object.values(lastOverlay.getExtData()),
-        ]);
-      }
-    }
+  // 监听图片点击
+  window.addEventListener("load", () => {
+    setTimeout(() => {
+      refreshViewjs();
+    }, 1000);
   });
-  //#endregion 撤销功能
+}
+setupViewjs();
+//#endregion 处理收藏图片显示模版和预览
 
-  //#region 自动保存 自动加载
-  setTimeout(() => {
-    document.querySelector('[name="autosave"]').checked && initLatestAutosave();
-  }, 1000);
-  function initLatestAutosave() {
-    if (!localStorage.getItem(SAVE_DATA_STORAGE_KEY)) return;
-    const data = JSON.parse(localStorage.getItem(SAVE_DATA_STORAGE_KEY));
-    if (!Array.isArray(data)) {
-      // 数据有问题
-      localStorage.removeItem(SAVE_DATA_STORAGE_KEY);
-      return;
-    }
-    if (data.length === 0) return;
-    console.info(`上次数据`, data);
-    const lays = data.map(unserializeObject).filter((e) => e);
-    themap.add(lays);
-    overlays.push(...lays);
-
-    //#region 处理 circle 附属元素
-    const mapper = Object.fromEntries(
-      overlays
-        .filter((e) => e._last_amap_id)
-        .map((lay) => [lay._last_amap_id, lay])
-    );
-    lays
-      .filter((lay) => lay.className === "Overlay.Circle")
-      .map((item) => {
-        const opts = item.getOptions();
-        for (const key in opts.extData) {
-          if (Object.prototype.hasOwnProperty.call(opts.extData, key)) {
-            // 复原绑定关系，半径、中心点、圆周点、半径长度
-            const element = opts.extData[key];
-            if (element instanceof Object && "_amap_id" in element) {
-              const last_amap_id = element._amap_id;
-              const lay = mapper[last_amap_id];
-              opts.extData[key] = lay;
-            }
-          }
-        }
-        return item;
-      })
-      .map((obj) => {
-        // 绑定 circle 附属元素事件
-        if (!obj.hasEvents("dragging", handleCircleDragging))
-          obj.on("dragging", handleCircleDragging);
-      });
-
-    //#endregion 处理 circle 附属元素
-
-    toast("已自动加载上次保存的标记");
-    lockOverlays();
-    toast("已经自动锁定所有元素");
-  }
-
-  // 自动记忆所有 overlays
-  window.addEventListener("beforeunload", (e) => {
-    e.preventDefault();
-    e.returnValue = "";
-  });
-
-  const SAVE_DATA_STORAGE_KEY = "SAVE_DATA_STORAGE_KEY";
-  window.addEventListener("beforeunload", (e) => {
-    const allUserOverlays = themap.getAllOverlays().filter((e) => {
-      return !initalOverlayIds.includes(e._amap_id);
-    });
-    if (!document.querySelector('[name="autosave"]').checked) return;
-    // 所有overlays转成json保存
-    const saveData = allUserOverlays.map(serializeObject).filter((e) => e);
-    localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
-  });
-
-  //#endregion 自动保存 自动加载
-
-  //#region AMap 对象序列化
-  hackAMapObjectSerialize();
+//#region AMap 对象序列化
+function setupAMapSerialize() {
   function hackAMapObjectSerialize() {
     function serializeCommon(unsavedKeys = ["extData", "map"]) {
       const opt = this.getOptions();
@@ -1103,6 +769,7 @@ window.addEventListener("load", () => {
       });
     };
   }
+  window.addEventListener("load", hackAMapObjectSerialize);
 
   function serializeObject(obj) {
     if (!obj.toJSON) return null;
@@ -1115,6 +782,423 @@ window.addEventListener("load", () => {
     instance._last_amap_id = data._amap_id;
     return instance;
   }
+  return {
+    serializeObject,
+    unserializeObject,
+  };
+}
+const { serializeObject, unserializeObject } = setupAMapSerialize();
+//#endregion AMap 对象序列化
 
-  //#endregion
+//#region MouseTool 工具相关
+
+//#region MouseTool UI
+function setupToolUI() {
+  // 删掉右上角的下载 APP 腾出位置
+  const amapAppDownload = document.querySelector("#amapAppDownload");
+  amapAppDownload.style.display = "none";
+
+  // 添加右上角工具按钮，添加右下角控制面板
+  document
+    .querySelector("#layerbox_item .show-list")
+    .appendChild(parseDom(mouseToolUI));
+  document.body.appendChild(parseDom(mouseToolPanelUI));
+
+  const mouseToolDom = document.querySelector('[data-type="mouse-tool"]');
+  const opratePanel = document.querySelector(".input-card");
+  mouseToolDom.addEventListener("click", () => {
+    const isShow = opratePanel.style.display !== "none";
+    if (isShow) {
+      opratePanel.style.display = "none";
+      mouseToolDom.classList.remove("active");
+    } else {
+      opratePanel.style.display = "flex";
+      mouseToolDom.classList.add("active");
+    }
+  });
+}
+window.addEventListener("load", setupToolUI);
+//#endregion MouseTool UI
+
+//#region utils
+function setupMouseToolUtils() {
+  function getLockState() {
+    const lockDom = document.getElementById("lock");
+    const nextState = lockDom.value;
+    return nextState === "锁定";
+  }
+  function lockOverlays() {
+    const lockDom = document.getElementById("lock");
+    const nextState = lockDom.value;
+    const locked = nextState === "锁定";
+    overlays.map((item) => {
+      item.setOptions({
+        draggable: locked ? false : true,
+      });
+    });
+    lockDom.value = locked ? "解锁" : "锁定";
+    return nextState;
+  }
+  return {
+    getLockState,
+    lockOverlays,
+  };
+}
+const { getLockState, lockOverlays } = setupMouseToolUtils();
+//#endregion utils
+
+//#region 工具面板
+
+//#region 工具控制面板事件
+function setupMouseToolEvents() {
+  function closeMouseTool() {
+    themap._mouseTool.close(false);
+    var radios = document.getElementsByName("func");
+    for (var i = 0; i < radios.length; i += 1) {
+      radios[i].checked = false;
+    }
+  }
+
+  function draw(type) {
+    switch (type) {
+      case "marker": {
+        themap._mouseTool.marker({
+          draggable: getLockState(),
+          //同Marker的Option设置
+        });
+        break;
+      }
+      case "polyline": {
+        themap._mouseTool.polyline({
+          draggable: getLockState(),
+          strokeColor: "#80d8ff",
+          //同Polyline的Option设置
+        });
+        break;
+      }
+      case "polygon": {
+        themap._mouseTool.polygon({
+          fillColor: "#00b0ff",
+          draggable: getLockState(),
+          strokeColor: "#80d8ff",
+          bubble: true,
+          //同Polygon的Option设置
+        });
+        break;
+      }
+      case "rectangle": {
+        themap._mouseTool.rectangle({
+          fillColor: "#00b0ff",
+          draggable: getLockState(),
+          strokeColor: "#80d8ff",
+          bubble: true,
+          //同Polygon的Option设置
+        });
+        break;
+      }
+      case "circle": {
+        themap._mouseTool.circle({
+          strokeColor: "red",
+          strokeStyle: "dashed",
+          fillOpacity: 0,
+          draggable: getLockState(),
+          bubble: true,
+          //同Circle的Option设置
+        });
+        break;
+      }
+      case "area": {
+        themap._mouseTool.measureArea({
+          fillColor: "#00b0ff",
+          strokeColor: "#80d8ff",
+          bubble: true,
+          draggable: getLockState(),
+          //同Circle的Option设置
+        });
+        break;
+      }
+    }
+  }
+
+  function setupEvents() {
+    document.getElementById("clear").onclick = function () {
+      themap.remove(overlays);
+      overlays.splice(0, overlays.length);
+    };
+    document.getElementById("lock").onclick = function (e) {
+      toast(`已经${lockOverlays()}`);
+    };
+    document.getElementById("hide-lays").onclick = function (e) {
+      const nextState = e.target.value;
+      const hide = nextState === "隐藏";
+      if (hide) overlays.map((e) => e.hide());
+      else overlays.map((e) => e.show());
+      e.target.value = hide ? "显示" : "隐藏";
+    };
+    document.getElementById("fit-view").onclick = function () {
+      themap.setFitView(overlays);
+    };
+
+    const radios = document.getElementsByName("func");
+    for (let i = 0; i < radios.length; i += 1) {
+      radios[i].onchange = function (e) {
+        draw(e.target.value);
+      };
+    }
+  }
+
+  window.addEventListener("load", setupEvents);
+  return { closeMouseTool };
+}
+const { closeMouseTool } = setupMouseToolEvents();
+//#endregion 工具控制面板事件
+
+//#region MouseTool 初始化
+function initMouseTool() {
+  themap._mouseTool = new AMap.MouseTool(themap);
+
+  //监听draw事件可获取画好的覆盖物
+  themap._mouseTool.on("drawing", ({ obj, type }) => {
+    const ext = obj.getExtData() || {};
+    obj.setExtData({ ...ext, drawing: true });
+
+    if (obj.className === "Overlay.Circle") {
+      const thisMap = obj.getMap();
+
+      if (!ext.centerMarker) {
+        // 创建圆心
+        const centerMarker = new AMap.Marker({
+          position: obj.getCenter(),
+          content: redDotContent,
+          offset: new AMap.Pixel(-3, -3),
+        });
+
+        // 创建半径
+        const radiusMarker = new AMap.Polyline({
+          path: [obj.getCenter(), cursorData.lnglat],
+          strokeColor: "blue",
+          strokeStyle: "dashed",
+        });
+
+        // 创建半径终点 marker
+        const radiusLineEndMarker = new AMap.Marker({
+          position: cursorData.lnglat,
+          content: redDotContent,
+          offset: new AMap.Pixel(-3, -3),
+        });
+
+        // 创建半径大小描述
+        const radiusTextMarker = new AMap.Text({
+          position: new AMap.LngLat(
+            (radiusLineEndMarker.getPosition().getLng() +
+              obj.getCenter().getLng()) /
+              2,
+            (radiusLineEndMarker.getPosition().getLat() +
+              obj.getCenter().getLat()) /
+              2
+          ),
+          text:
+            AMap.GeometryUtil.distance(
+              obj.getCenter(),
+              cursorData.lnglat
+            ).toFixed(2) + "公里",
+          offset: new AMap.Pixel(-10, -10),
+        });
+
+        obj.setExtData({
+          ...ext,
+          centerMarker,
+          radiusMarker,
+          radiusLineEndMarker,
+          radiusTextMarker,
+        });
+        thisMap.add([
+          centerMarker,
+          radiusMarker,
+          radiusLineEndMarker,
+          radiusTextMarker,
+        ]);
+        overlays.push(
+          centerMarker,
+          radiusMarker,
+          radiusLineEndMarker,
+          radiusTextMarker
+        );
+
+        if (!obj.hasEvents("dragging", handleCircleDragging))
+          obj.on("dragging", handleCircleDragging);
+      } else {
+        // 更新半径
+        updateCircleAttachment({ obj, type }, cursorData.lnglat, true);
+      }
+    }
+  });
+  themap._mouseTool.on("draw", function ({ obj, type }) {
+    obj.setExtData({ ...obj.getExtData(), drawing: false });
+    overlays.push(obj);
+    closeMouseTool();
+  });
+}
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    initMouseTool();
+  }, 1000);
 });
+//#endregion MouseTool 初始化
+
+//#region 圆圈附属元素相关
+function updateCircleAttachment(
+  { obj, type },
+  radiusEndLngLat,
+  force = false,
+  originEvent = null
+) {
+  const ext = obj.getExtData() || {};
+  if (!force && ext.drawing) return;
+  if (!radiusEndLngLat) {
+    // 如果没有 radiusEndLngLat 说明是平移
+    // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
+    const curLnglat = originEvent.lnglat;
+    const center = obj.getCenter();
+    const raidus = obj.getRadius();
+    // 计算鼠标位置与圆心的经纬度差值
+    const dLng = curLnglat.getLng() - center.getLng();
+    const dLat = curLnglat.getLat() - center.getLat();
+    // 使用反正切函数计算角度（弧度）
+    const angle = Math.atan2(dLat, dLng); // 弧度
+    radiusEndLngLat = center.offset(
+      Math.cos(angle) * raidus,
+      Math.sin(angle) * raidus
+    );
+  }
+
+  const newCenter = obj.getCenter();
+
+  // 修正圆心点
+  ext.centerMarker.setPosition(newCenter);
+
+  // 半径线
+  ext.radiusMarker.setPath([newCenter, radiusEndLngLat]);
+
+  // 半径远端标点
+  ext.radiusLineEndMarker.setPosition(radiusEndLngLat);
+
+  // 半径长度
+  ext.radiusTextMarker.setPosition(
+    new AMap.LngLat(
+      (ext.radiusMarker.getPath()[0].getLng() +
+        ext.radiusMarker.getPath()[1].getLng()) /
+        2,
+      (ext.radiusMarker.getPath()[0].getLat() +
+        ext.radiusMarker.getPath()[1].getLat()) /
+        2
+    )
+  );
+  ext.radiusTextMarker.setText(
+    AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
+      "公里"
+  );
+}
+function handleCircleDragging(event) {
+  updateCircleAttachment(
+    { obj: event.target, type: event.type },
+    undefined,
+    false,
+    event
+  );
+}
+//#endregion 圆圈附属元素相关
+
+//#endregion 工具面板
+
+//#region 撤销功能
+// 添加键盘事件监听，实现撤销功能
+document.addEventListener("keydown", function (e) {
+  // 检测是否按下Ctrl/Cmd+Z
+  if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+    e.preventDefault(); // 阻止浏览器默认的撤销行为
+    if (overlays.length > 0) {
+      // 移除最后一个覆盖物
+      var lastOverlay = overlays.pop();
+      themap.remove([lastOverlay, ...Object.values(lastOverlay.getExtData())]);
+    }
+  }
+});
+//#endregion 撤销功能
+
+//#region 自动保存 自动加载
+function initLatestAutosave() {
+  if (!localStorage.getItem(SAVE_DATA_STORAGE_KEY)) return;
+  const data = JSON.parse(localStorage.getItem(SAVE_DATA_STORAGE_KEY));
+  if (!Array.isArray(data)) {
+    // 数据有问题
+    localStorage.removeItem(SAVE_DATA_STORAGE_KEY);
+    return;
+  }
+  if (data.length === 0) return;
+  console.info(`上次数据`, data);
+  const lays = data.map(unserializeObject).filter((e) => e);
+  themap.add(lays);
+  overlays.push(...lays);
+
+  //#region 处理 circle 附属元素
+  const mapper = Object.fromEntries(
+    overlays
+      .filter((e) => e._last_amap_id)
+      .map((lay) => [lay._last_amap_id, lay])
+  );
+  lays
+    .filter((lay) => lay.className === "Overlay.Circle")
+    .map((item) => {
+      const opts = item.getOptions();
+      for (const key in opts.extData) {
+        if (Object.prototype.hasOwnProperty.call(opts.extData, key)) {
+          // 复原绑定关系，半径、中心点、圆周点、半径长度
+          const element = opts.extData[key];
+          if (element instanceof Object && "_amap_id" in element) {
+            const last_amap_id = element._amap_id;
+            const lay = mapper[last_amap_id];
+            opts.extData[key] = lay;
+          }
+        }
+      }
+      return item;
+    })
+    .map((obj) => {
+      // 绑定 circle 附属元素事件
+      if (!obj.hasEvents("dragging", handleCircleDragging))
+        obj.on("dragging", handleCircleDragging);
+    });
+
+  //#endregion 处理 circle 附属元素
+
+  toast("已自动加载上次保存的标记");
+  lockOverlays();
+  toast("已经自动锁定所有元素");
+}
+window.addEventListener("load", () => {
+  // 记录原本高德地图自带的 marker
+  initalOverlayIds.push(...themap.getAllOverlays().map((e) => e._amap_id));
+  setTimeout(() => {
+    document.querySelector('[name="autosave"]').checked && initLatestAutosave();
+  }, 1000);
+});
+
+// 自动记忆所有 overlays
+function saveAllOverlays() {
+  const allUserOverlays = themap.getAllOverlays().filter((e) => {
+    return !initalOverlayIds.includes(e._amap_id);
+  });
+  if (!document.querySelector('[name="autosave"]').checked) return;
+  // 所有overlays转成json保存
+  const saveData = allUserOverlays.map(serializeObject).filter((e) => e);
+  localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
+}
+window.addEventListener("beforeunload", (e) => {
+  e.preventDefault();
+  e.returnValue = "";
+  saveAllOverlays();
+});
+//#endregion 自动保存 自动加载
+
+//#endregion MouseTool 工具相关
