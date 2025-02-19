@@ -380,6 +380,7 @@
 </div>
 `
 
+    const redDotContent = '<div style="width: 6px; height: 6px; background-color: #f00; border-radius: 50%;user-select: none;"></div>'
     // registerFetchInterceptor(
     //     (input, init) => {
     //         const url = typeof input === 'string' ? input : input.url;
@@ -397,6 +398,18 @@
     // );
     //#endregion
 
+    window.cursorData = {
+        lnglat: null,
+        pixel: null,
+        pos: null,
+    }
+    window.addEventListener('load', () => {
+        window.themap.on('mousemove', (e) => {
+            window.cursorData.lnglat = e.lnglat
+            window.cursorData.pixel = e.pixel
+            window.cursorData.pos = e.pos
+        })
+    })
 
     //#region 处理收藏图片显示
     const jsonApi = '/service/fav/getFav'
@@ -660,14 +673,95 @@
 
         var mouseTool = new AMap.MouseTool(window.themap);
         window.mouseTool = mouseTool
+
+        function updateCircleAttachment({ obj, type }, radiusEndLngLat, force = false) {
+            const ext = obj.getExtData() || {}
+            if (!force && ext.drawing) return
+
+            const newCenter = obj.getCenter()
+
+            // 修正圆心点
+            ext.centerMarker.setPosition(newCenter)
+
+            // 半径线
+            ext.radiusMarker.setPath([newCenter, radiusEndLngLat])
+
+            // 半径远端标点
+            ext.radiusLineEndMarker.setPosition(radiusEndLngLat)
+
+            // 半径长度
+            ext.radiusTextMarker.setPosition(new AMap.LngLat(
+                (ext.radiusMarker.getPath()[0].getLng() + ext.radiusMarker.getPath()[1].getLng()) / 2,
+                (ext.radiusMarker.getPath()[0].getLat() + ext.radiusMarker.getPath()[1].getLat()) / 2))
+            ext.radiusTextMarker.setText(AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) + '公里')
+        }
+        function handleCircleDragging(event) {
+            updateCircleAttachment({ obj: event.target, type: event.type }, event.lnglat)
+        }
         //监听draw事件可获取画好的覆盖物
         var overlays = window.overlays = [];
-        mouseTool.on('draw', function (e) {
-            overlays.push(e.obj);
+        mouseTool.on('drawing', ({ obj, type }) => {
+            const ext = obj.getExtData() || {}
+            obj.setExtData({ ...ext, drawing: true })
+
+            if (obj.className === "Overlay.Circle") {
+                const thisMap = obj.getMap()
+
+                if (!ext.centerMarker) {
+                    // 创建圆心
+                    const centerMarker = new AMap.Marker({
+                        position: obj.getCenter(),
+                        content: redDotContent,
+                        offset: new AMap.Pixel(-3, -3),
+                    });
+
+                    // 创建半径
+                    const radiusMarker = new AMap.Polyline({
+                        path: [obj.getCenter(), window.cursorData.lnglat],
+                        strokeColor: "blue",
+                        strokeStyle: "dashed",
+                    });
+
+                    // 创建半径终点 marker
+                    const radiusLineEndMarker = new AMap.Marker({
+                        position: window.cursorData.lnglat,
+                        content: redDotContent,
+                        offset: new AMap.Pixel(-3, -3),
+                    });
+
+                    // 创建半径大小描述
+                    const radiusTextMarker = new AMap.Text({
+                        position: new AMap.LngLat(
+                            (radiusLineEndMarker.getPosition().getLng() + obj.getCenter().getLng()) / 2,
+                            (radiusLineEndMarker.getPosition().getLat() + obj.getCenter().getLat()) / 2),
+                        text: AMap.GeometryUtil.distance(obj.getCenter(), window.cursorData.lnglat).toFixed(2) + '公里',
+                        offset: new AMap.Pixel(-10, -10),
+                    })
+
+                    obj.setExtData({
+                        ...ext,
+                        centerMarker,
+                        radiusMarker,
+                        radiusLineEndMarker,
+                        radiusTextMarker,
+                    })
+                    thisMap.add([centerMarker, radiusMarker, radiusLineEndMarker, radiusTextMarker])
+
+                    if (!obj.hasEvents('dragging', handleCircleDragging))
+                        obj.on('dragging', handleCircleDragging)
+                } else {
+                    // 更新半径
+                    updateCircleAttachment({ obj, type }, window.cursorData.lnglat, true)
+                }
+            }
+        })
+        mouseTool.on('draw', function ({ obj, type }) {
+            obj.setExtData({ ...obj.getExtData(), drawing: false })
+            overlays.push(obj);
         });
 
         // 添加键盘事件监听，实现撤销功能
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             // 检测是否按下Ctrl/Cmd+Z
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                 e.preventDefault(); // 阻止浏览器默认的撤销行为
