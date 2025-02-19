@@ -503,7 +503,7 @@
       .map((e) => e._amap_id);
     const overlays = (window.overlays = []);
 
-    //#region 鼠标工具-绘制覆盖物
+    //#region 工具面板
 
     //#region UI
     const amapAppDownload = document.querySelector("#amapAppDownload");
@@ -529,6 +529,7 @@
             <input type="radio" name='func' value='area'><span class="input-text">测面积</span>
         </div>
         <div class="input-item" style="gap: 10px;">
+            <input id="hide-lays" type="button" class="btn" value="隐藏" />
             <input id="clear" type="button" class="btn" value="清除" />
             <input id="lock" type="button" class="btn" value="锁定" />
             <input id="close" type="button" class="btn" value="关闭" />
@@ -712,6 +713,7 @@
       }
     });
 
+    //#region utils
     function getLockState() {
       const lockDom = document.getElementById("lock");
       const nextState = lockDom.value;
@@ -729,6 +731,23 @@
       lockDom.value = locked ? "解锁" : "锁定";
       return nextState;
     }
+    //#endregion utils
+
+    //#region 工具控制面板事件
+    document.getElementById("clear").onclick = function () {
+      window.themap.remove(overlays);
+      overlays = [];
+    };
+    document.getElementById("close").onclick = function () {
+      mouseTool.close(false);
+      for (var i = 0; i < radios.length; i += 1) {
+        radios[i].checked = false;
+      }
+    };
+    document.getElementById("lock").onclick = function (e) {
+      toast(`已经${lockOverlays()}`);
+    };
+    //#endregion 工具控制面板事件
 
     function initMouseTool() {
       var mouseTool = new AMap.MouseTool(window.themap);
@@ -879,21 +898,6 @@
           draw(e.target.value);
         };
       }
-      // draw('marker')
-
-      document.getElementById("clear").onclick = function () {
-        window.themap.remove(overlays);
-        overlays = [];
-      };
-      document.getElementById("close").onclick = function () {
-        mouseTool.close(false);
-        for (var i = 0; i < radios.length; i += 1) {
-          radios[i].checked = false;
-        }
-      };
-      document.getElementById("lock").onclick = function (e) {
-        toast(`已经${lockOverlays()}`);
-      };
     }
 
     //#region 圆圈附属元素相关
@@ -962,7 +966,7 @@
     setTimeout(() => {
       initMouseTool();
     }, 1000);
-    //#endregion
+    //#endregion 工具面板
 
     //#region 撤销功能
     // 添加键盘事件监听，实现撤销功能
