@@ -1018,6 +1018,38 @@
       const lays = data.map(unserializeObject).filter((e) => e);
       window.themap.add(lays);
       window.overlays.push(...lays);
+
+      //#region 处理 circle 附属元素
+      const mapper = Object.fromEntries(
+        window.overlays
+          .filter((e) => e._last_amap_id)
+          .map((lay) => [lay._last_amap_id, lay])
+      );
+      lays
+        .filter((lay) => lay.className === "Overlay.Circle")
+        .map((item) => {
+          const opts = item.getOptions();
+          for (const key in opts.extData) {
+            if (Object.prototype.hasOwnProperty.call(opts.extData, key)) {
+              // 复原绑定关系，半径、中心点、圆周点、半径长度
+              const element = opts.extData[key];
+              if (element instanceof Object && "_amap_id" in element) {
+                const last_amap_id = element._amap_id;
+                const lay = mapper[last_amap_id];
+                opts.extData[key] = lay;
+              }
+            }
+          }
+          return item;
+        })
+        .map((obj) => {
+          // 绑定 circle 附属元素事件
+          if (!obj.hasEvents("dragging", handleCircleDragging))
+            obj.on("dragging", handleCircleDragging);
+        });
+
+      //#endregion 处理 circle 附属元素
+
       toast("已自动加载上次保存的标记");
       lockOverlays();
       toast("已经自动锁定所有元素");
@@ -1034,11 +1066,9 @@
       const allUserOverlays = window.themap.getAllOverlays().filter((e) => {
         return !initalOverlayIds.includes(e._amap_id);
       });
-      // 所有overlays转成geojson保存
-      const saveData = allUserOverlays
-        .map(serializeObject)
-        .filter((e) => e)
-        .map((e) => JSON.parse(e));
+      if (!document.querySelector('[name="autosave"]').checked) return;
+      // 所有overlays转成json保存
+      const saveData = allUserOverlays.map(serializeObject).filter((e) => e);
       localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
     });
 
@@ -1054,48 +1084,51 @@
         );
         const serializedData = {
           className: this.className,
+          _amap_id: this._amap_id,
           options: JSON.parse(JSON.stringify(saveData)),
         };
-        return JSON.stringify(serializedData);
+        return serializedData;
       }
 
       const AMap = window.AMap;
-      AMap.Text.prototype.serialize = function () {
+      AMap.Text.prototype.toJSON = function () {
         this.setOptions({ position: this.getPosition() });
         const unsavedKeys = ["extData", "map", "content"];
         return serializeCommon.bind(this)(unsavedKeys);
       };
       AMap.Text.unserialize = (str) => new AMap.Text(JSON.parse(str).options);
 
-      AMap.Circle.prototype.serialize = function () {
+      AMap.Circle.prototype.toJSON = function () {
         this.setOptions({ center: this.getCenter() });
-        return serializeCommon.bind(this)();
+        const data = serializeCommon.bind(this)();
+        data.options.extData = JSON.parse(JSON.stringify(this.getExtData()));
+        return data;
       };
       AMap.Circle.unserialize = (str) =>
         new AMap.Circle(JSON.parse(str).options);
 
-      AMap.Marker.prototype.serialize = function () {
+      AMap.Marker.prototype.toJSON = function () {
         this.setOptions({ position: this.getPosition() });
         return serializeCommon.bind(this)();
       };
       AMap.Marker.unserialize = (str) =>
         new AMap.Marker(JSON.parse(str).options);
 
-      AMap.Polyline.prototype.serialize = function () {
+      AMap.Polyline.prototype.toJSON = function () {
         this.setOptions({ path: this.getPath() });
         return serializeCommon.bind(this)();
       };
       AMap.Polyline.unserialize = (str) =>
         new AMap.Polyline(JSON.parse(str).options);
 
-      AMap.Polygon.prototype.serialize = function () {
+      AMap.Polygon.prototype.toJSON = function () {
         this.setOptions({ path: this.getPath() });
         return serializeCommon.bind(this)();
       };
       AMap.Polygon.unserialize = (str) =>
         new AMap.Polygon(JSON.parse(str).options);
 
-      AMap.Rectangle.prototype.serialize = function () {
+      AMap.Rectangle.prototype.toJSON = function () {
         this.setOptions({ bounds: this.getBounds() });
         return serializeCommon.bind(this)();
       };
@@ -1112,13 +1145,15 @@
     }
 
     function serializeObject(obj) {
-      if (!obj.serialize) return null;
-      return obj.serialize();
+      if (!obj.toJSON) return null;
+      return obj.toJSON();
     }
     function unserializeObject(str) {
       const data = typeof str === "string" ? JSON.parse(str) : str;
       const [type, clazz] = data.className.split(".");
-      return AMap[clazz].unserialize(JSON.stringify(data));
+      const instance = AMap[clazz].unserialize(JSON.stringify(data));
+      instance._last_amap_id = data._amap_id;
+      return instance;
       // switch (data.className) {
       //   case "AMap.Text":
       //     return AMap.Text.unserialize(JSON.stringify(data));
