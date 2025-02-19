@@ -983,6 +983,7 @@
         localStorage.removeItem(SAVE_DATA_STORAGE_KEY);
         return;
       }
+      if (data.length === 0) return;
       console.info(`上次数据`, data);
       const lays = data.map(unserializeObject).filter((e) => e);
       window.themap.add(lays);
@@ -1065,13 +1066,17 @@
     }
     function unserializeObject(str) {
       const data = typeof str === "string" ? JSON.parse(str) : str;
-      switch (data.className) {
-        case "AMap.Text":
-          return AMap.Text.unserialize(JSON.stringify(data));
-        case "Overlay.Circle":
-          return AMap.Circle.unserialize(JSON.stringify(data));
-      }
-      return null;
+      const [type, clazz] = data.className.split(".");
+      return AMap[clazz].unserialize(JSON.stringify(data));
+      // switch (data.className) {
+      //   case "AMap.Text":
+      //     return AMap.Text.unserialize(JSON.stringify(data));
+      //   case "Overlay.Circle":
+      //     return AMap.Circle.unserialize(JSON.stringify(data));
+      //   case "AMap.Marker":
+      //     return AMap.Marker.unserialize(JSON.stringify(data));
+      // }
+      // return null;
     }
 
     //#endregion
