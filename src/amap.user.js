@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @namespace       https://github.com/eric-gitta-moore/amap-enhanced
-// @version         2025.02.18.1
+// @version         2025.02.18.2
 // @description     高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @author          https://eric-gitta-moore.github.io/
 // @match           https://www.amap.com/*
