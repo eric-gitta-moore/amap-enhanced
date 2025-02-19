@@ -503,7 +503,7 @@
     amapAppDownload.style.display = "none";
 
     const mouseToolUI = `
-<a class="item" data-type="mouse-tool" href="javascript:void(0)"> <span class="icon"> <i class="iconfont icon-iconshoucangjia"></i> </span> <span class="name">工具</span>  </a>
+<a class="item active" data-type="mouse-tool" href="javascript:void(0)"> <span class="icon"> <i class="iconfont icon-iconshoucangjia"></i> </span> <span class="name">工具</span>  </a>
 `;
     document
       .querySelector("#layerbox_item .show-list")
@@ -697,8 +697,10 @@
       const isShow = opratePanel.style.display !== "none";
       if (isShow) {
         opratePanel.style.display = "none";
+        mouseToolDom.classList.remove("active");
       } else {
         opratePanel.style.display = "flex";
+        mouseToolDom.classList.add("active");
       }
     });
 
@@ -1033,31 +1035,50 @@
         const unsavedKeys = ["extData", "map", "content"];
         return serializeCommon.bind(this)(unsavedKeys);
       };
-      AMap.Text.unserialize = function (str) {
-        return new AMap.Text(JSON.parse(str).options);
-      };
+      AMap.Text.unserialize = (str) => new AMap.Text(JSON.parse(str).options);
 
       AMap.Circle.prototype.serialize = function () {
         this.setOptions({ center: this.getCenter() });
         return serializeCommon.bind(this)();
       };
-      AMap.Circle.unserialize = function (str) {
-        return new AMap.Circle(JSON.parse(str).options);
-      };
+      AMap.Circle.unserialize = (str) =>
+        new AMap.Circle(JSON.parse(str).options);
 
       AMap.Marker.prototype.serialize = function () {
         this.setOptions({ position: this.getPosition() });
         return serializeCommon.bind(this)();
       };
-      AMap.Marker.unserialize = function (str) {
-        return new AMap.Marker(JSON.parse(str).options);
+      AMap.Marker.unserialize = (str) =>
+        new AMap.Marker(JSON.parse(str).options);
+
+      AMap.Polyline.prototype.serialize = function () {
+        this.setOptions({ path: this.getPath() });
+        return serializeCommon.bind(this)();
       };
+      AMap.Polyline.unserialize = (str) =>
+        new AMap.Polyline(JSON.parse(str).options);
 
-      AMap.Polyline.prototype.serialize = function () {};
+      AMap.Polygon.prototype.serialize = function () {
+        this.setOptions({ path: this.getPath() });
+        return serializeCommon.bind(this)();
+      };
+      AMap.Polygon.unserialize = (str) =>
+        new AMap.Polygon(JSON.parse(str).options);
 
-      AMap.Polygon.prototype.serialize = function () {};
-
-      AMap.Rectangle.prototype.serialize = function () {};
+      AMap.Rectangle.prototype.serialize = function () {
+        this.setOptions({ bounds: this.getBounds() });
+        return serializeCommon.bind(this)();
+      };
+      AMap.Rectangle.unserialize = (str) => {
+        const opts = JSON.parse(str).options;
+        return new AMap.Rectangle({
+          ...opts,
+          bounds: new AMap.Bounds(
+            opts.bounds.slice(0, 2),
+            opts.bounds.slice(2, 4)
+          ),
+        });
+      };
     }
 
     function serializeObject(obj) {
