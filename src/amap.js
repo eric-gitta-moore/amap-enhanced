@@ -781,7 +781,7 @@
                 if (overlays.length > 0) {
                     // 移除最后一个覆盖物
                     var lastOverlay = overlays.pop();
-                    window.themap.remove(lastOverlay)
+                    window.themap.remove([lastOverlay, ...Object.values(lastOverlay.getExtData())])
                 }
             }
         });
