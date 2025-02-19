@@ -532,7 +532,7 @@
             <input id="hide-lays" type="button" class="btn" value="隐藏" />
             <input id="clear" type="button" class="btn" value="清除" />
             <input id="lock" type="button" class="btn" value="锁定" />
-            <input id="close" type="button" class="btn" value="关闭" />
+            <input id="fit-view" type="button" class="btn" value="自动缩放" />
         </div>
         <div class="input-item">
             <input type="checkbox" checked name="autosave" value="autosave"><span class="input-text">自动保存</span>
@@ -734,16 +734,16 @@
     //#endregion utils
 
     //#region 工具控制面板事件
-    document.getElementById("clear").onclick = function () {
-      window.themap.remove(overlays);
-      overlays.splice(0, overlays.length);
-    };
-    document.getElementById("close").onclick = function () {
+    function closeMouseTool() {
       window.mouseTool.close(false);
       var radios = document.getElementsByName("func");
       for (var i = 0; i < radios.length; i += 1) {
         radios[i].checked = false;
       }
+    }
+    document.getElementById("clear").onclick = function () {
+      window.themap.remove(overlays);
+      overlays.splice(0, overlays.length);
     };
     document.getElementById("lock").onclick = function (e) {
       toast(`已经${lockOverlays()}`);
@@ -754,6 +754,9 @@
       if (hide) window.overlays.map((e) => e.hide());
       else window.overlays.map((e) => e.show());
       e.target.value = hide ? "显示" : "隐藏";
+    };
+    document.getElementById("fit-view").onclick = function () {
+      window.themap.setFitView(window.overlays);
     };
     //#endregion 工具控制面板事件
 
@@ -844,6 +847,7 @@
       mouseTool.on("draw", function ({ obj, type }) {
         obj.setExtData({ ...obj.getExtData(), drawing: false });
         overlays.push(obj);
+        closeMouseTool();
       });
 
       function draw(type) {
