@@ -577,6 +577,37 @@ function setupTemplate() {
 </div>
 `;
 
+  const contextMenuUI = `
+<ul class="context_menu">
+    <li class="menu_item menu_plan" type="marker-tmp-from" id="menuFrom">
+        <i class="menu-icon menu-icon-from"></i><span>设为起点</span>
+    </li>
+    <li class="menu_item menu_plan menu_via" type="marker-tmp-via" id="menuVia">
+        <i class="menu-icon menu-icon-via"></i><span>设为途经点</span>
+    </li>
+    <li class="menu_item menu_plan" type="marker-tmp-to" id="menuTo">
+        <i class="menu-icon menu-icon-to"></i><span>设为终点</span>
+    </li>
+</ul>
+<ul class="context_menu border-t">
+    <li class="menu_item" id="menuWhere">
+        <i class="iconfont icon-where"></i><span>这是哪儿</span>
+    </li>
+    <li class="menu_item" id="menuNear">
+        <i class="iconfont icon-nearby"></i><span>搜周边</span>
+    </li>
+    <li class="menu_item" id="menuSetCenter">
+        <i class="iconfont icon-mapcenter"></i><span>设为地图中心点</span>
+    </li>
+    <li class="menu_item unable" id="menuClearDir">
+        <i class="iconfont icon-clearmap"></i><span>清除路线</span>
+    </li>
+    <li class="menu_item" id="menuClearmap">
+        <span class="border-t">清除地图</span>
+    </li>
+</ul>
+`;
+
   const redDotContent =
     '<div style="width: 6px; height: 6px; background-color: #f00; border-radius: 50%;user-select: none;"></div>';
 
@@ -612,6 +643,7 @@ function setupTemplate() {
     redDotContent,
     mouseToolPanelUI,
     mouseToolUI,
+    contextMenuUI,
   };
 }
 const {
@@ -620,6 +652,7 @@ const {
   redDotContent,
   mouseToolPanelUI,
   mouseToolUI,
+  contextMenuUI,
 } = setupTemplate();
 //#endregion template
 
@@ -648,6 +681,7 @@ function setupTplInterceptors() {
   const jsonApi = "/service/fav/getFav";
   const favListTplApi = "/assets/biz/faves/tpl/fav.list.html";
   const favInfoWindowTplApi = "/assets/tpl/canvas-favinfowindow.html";
+  const contextMenuTplApi = "/assets/tpl/canvas-contextMenu.html";
 
   registerXHRInterceptor(
     (xhr) => xhr.url.includes(favListTplApi),
@@ -656,6 +690,10 @@ function setupTplInterceptors() {
   registerXHRInterceptor(
     (xhr) => xhr.url.includes(favInfoWindowTplApi),
     (xhr) => favInfoWindowTpl
+  );
+  registerXHRInterceptor(
+    (xhr) => xhr.url.includes(contextMenuTplApi),
+    (xhr) => contextMenuUI
   );
 
   // 查询 favInfo
