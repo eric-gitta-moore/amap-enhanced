@@ -929,6 +929,7 @@ function setupMouseToolEvents() {
     document.getElementById("clear").onclick = function () {
       themap.remove(overlays);
       overlays.splice(0, overlays.length);
+      toast("清除成功");
     };
     document.getElementById("lock").onclick = function (e) {
       toast(`已经${lockOverlays()}`);
@@ -939,9 +940,11 @@ function setupMouseToolEvents() {
       if (hide) overlays.map((e) => e.hide());
       else overlays.map((e) => e.show());
       e.target.value = hide ? "显示" : "隐藏";
+      toast(`已经${nextState}`);
     };
     document.getElementById("fit-view").onclick = function () {
       themap.setFitView(overlays);
+      toast(`已经缩放到合适大小`);
     };
 
     const radios = document.getElementsByName("func");
