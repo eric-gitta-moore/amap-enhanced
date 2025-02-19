@@ -6,12 +6,212 @@
 // @author          https://eric-gitta-moore.github.io/
 // @match           https://www.amap.com/*
 // @icon            https://a.amap.com/pc/static/favicon.ico
-// @grant           none
+// @grant           GM_addStyle
+// @grant           GM_getResourceText
 // @run-at          document-start
+// @require         https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.js
+// @require         https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js
+// @resource        toastify.min.css https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css
+// @resource        viewer.min.css https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css
 // ==/UserScript==
 
 (function () {
   "use strict";
+
+  //#region injectCSS
+  window.addEventListener("load", () => {
+    GM_addStyle(GM_getResourceText("toastify.min.css"));
+    GM_addStyle(GM_getResourceText("viewer.min.css"));
+    GM_addStyle(
+      `
+.favphoto::-webkit-scrollbar { 
+    /* 隐藏默认的滚动条 */
+    -webkit-appearance: none;
+}
+
+
+.favphoto::-webkit-scrollbar:horizontal{
+    /* 设置水平滚动条厚度 */
+    height: 5px;
+}
+
+.favphoto::-webkit-scrollbar-thumb { 
+    /* 滚动条的其他样式定制，注意，这个一定也要定制，否则就是一个透明的滚动条 */
+    border-radius: 8px; 
+    /* border: 2px solid rgba(255,255,255,.4);  */
+    background-color: rgba(0, 0, 0, .5);
+}
+
+.favphoto {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+}
+
+.favphoto img {
+    width: 50px;
+    object-fit: cover;
+}
+`
+    );
+    GM_addStyle(
+      `
+.amap-copyright {
+    display: none !important;
+}
+.input-item {
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+    height: 3rem;
+}
+
+.input-item:last-child {
+    margin-bottom: 0;
+}
+
+.input-item>select, .input-item>input[type=text], .input-item>input[type=date] {
+    position: relative;
+    -ms-flex: 1 1 auto;
+    flex: 1 1 auto;
+    width: 1%;
+    margin-bottom: 0;
+}
+
+.input-item>select:not(:last-child), .input-item>input[type=text]:not(:last-child), .input-item>input[type=date]:not(:last-child) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0
+}
+
+.input-item>select:not(:first-child), .input-item>input[type=text]:not(:first-child), .input-item>input[type=date]:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0
+}
+
+.input-item-prepend {
+    margin-right: -1px;
+}
+
+.input-item-text, input[type=text],input[type=date], select {
+    height: calc(2.2rem + 2px);
+}
+
+.input-item-text {
+    width: 6rem;
+    text-align: justify;
+    padding: 0.4rem 0.7rem;
+    display: inline-block;
+    text-justify: distribute-all-lines;
+    /*ie6-8*/
+    text-align-last: justify;
+    /* ie9*/
+    -moz-text-align-last: justify;
+    /*ff*/
+    -webkit-text-align-last: justify;
+    /*chrome 20+*/
+    -ms-flex-align: center;
+    align-items: center;
+    margin-bottom: 0;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #495057;
+    text-align: center;
+    white-space: nowrap;
+    background-color: #e9ecef;
+    border: 1px solid #ced4da;
+    border-radius: .25rem;
+    border-bottom-right-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.input-item-text input[type=checkbox], .input-item-text input[type=radio] {
+    margin-top: 0
+}
+
+.input-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    word-wrap: break-word;
+    background-color: #fff;
+    background-clip: border-box;
+    border-radius: .25rem;
+    width: 22rem;
+    border-width: 0;
+    border-radius: 0.4rem;
+    box-shadow: 0 2px 6px 0 rgba(114, 124, 245, .5);
+    position: fixed;
+    bottom: 1rem;
+    right: 5rem;
+    -ms-flex: 1 1 auto;
+    flex: 1 1 auto;
+    padding: 0.55rem 0.75rem;
+}
+
+.input-text {
+    line-height: 2rem;
+    margin-right: 2rem;
+}
+
+.btn {
+  display: inline-block;
+  font-weight: 400;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  border: 1px solid transparent;
+  transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+  background-color: transparent;
+  background-image: none;
+  color: #25A5F7;
+  border-color: #25A5F7;
+  padding: .25rem .5rem;
+  line-height: 1.5;
+  border-radius: 1rem;
+  -webkit-appearance: button;
+  cursor:pointer;
+}
+
+.btn:hover {
+  color: #fff;
+  background-color: #25A5F7;
+  border-color: #25A5F7
+}
+
+.btn:hover {
+  text-decoration: none
+}
+
+.input-item{
+  height: 2.2rem;
+}
+.btn{
+  flex: 1;
+
+}
+.input-text{
+  width: 3rem;
+  margin-right: .5rem;
+}
+.input-card input[type=checkbox], input[type=radio] {
+  box-sizing: border-box;
+  padding: 0;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0 0.5rem 0 0;
+}
+`
+    );
+  });
+  //#endregion injectCSS
 
   //#region library
   // 请求拦截器注册中心
@@ -77,10 +277,10 @@
   }
 
   // 保存原始的 XMLHttpRequest
-  const originalXHR = window.XMLHttpRequest;
+  const originalXHR = unsafeWindow.XMLHttpRequest;
 
   // 创建新的 XMLHttpRequest 构造函数
-  window.XMLHttpRequest = function () {
+  unsafeWindow.XMLHttpRequest = function () {
     const xhr = new originalXHR();
     const originalOpen = xhr.open;
     const originalSend = xhr.send;
@@ -110,10 +310,10 @@
   };
 
   // 保存原始的 fetch
-  const originalFetch = window.fetch;
+  const originalFetch = unsafeWindow.fetch;
 
   // 重写 fetch
-  window.fetch = async function (input, init) {
+  unsafeWindow.fetch = async function (input, init) {
     const interceptedResponse = await executeFetchInterceptors(input, init);
     if (interceptedResponse) {
       return interceptedResponse;
@@ -121,67 +321,10 @@
     return originalFetch(input, init);
   };
 
-  function injectScript(content, isFile = false) {
-    const script = document.createElement("script");
-    if (isFile) {
-      script.src = content;
-    } else {
-      script.textContent = content;
-    }
-    document.head.appendChild(script);
-    // 可选：在脚本加载完成后移除
-    // script.onload = () => script.remove();
-  }
-
-  function injectCSS(content, isFile = false) {
-    const style = document.createElement("style");
-    if (isFile) {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = content;
-      document.head.appendChild(link);
-      return;
-    }
-    style.textContent = content;
-    document.head.appendChild(style);
-  }
-
-  injectCSS(`
-.favphoto::-webkit-scrollbar { 
-    /* 隐藏默认的滚动条 */
-    -webkit-appearance: none;
-}
-
-
-.favphoto::-webkit-scrollbar:horizontal{
-    /* 设置水平滚动条厚度 */
-    height: 5px;
-}
-
-.favphoto::-webkit-scrollbar-thumb { 
-    /* 滚动条的其他样式定制，注意，这个一定也要定制，否则就是一个透明的滚动条 */
-    border-radius: 8px; 
-    /* border: 2px solid rgba(255,255,255,.4);  */
-    background-color: rgba(0, 0, 0, .5);
-}
-
-.favphoto {
-    display: flex;
-    overflow-x: auto;
-    gap: 8px;
-}
-
-.favphoto img {
-    width: 50px;
-    object-fit: cover;
-}
-`);
-
   function parseDom(str) {
     return Document.parseHTMLUnsafe(str).body.childNodes[0];
   }
   const favListTpl = `
-
 <%
 	var infoArray = obj.items && obj.items.length > 0 ? obj.items : false;
 %>
@@ -395,19 +538,9 @@
   //         };
   //     }
   // );
-  //#endregion
+  //#endregion library
 
   //#region toast
-  window.addEventListener("load", () => {
-    injectScript(
-      "https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.js",
-      true
-    );
-    injectCSS(
-      "https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css",
-      true
-    );
-  });
   function toast(text, options) {
     Toastify({
       text,
@@ -418,16 +551,16 @@
   //#endregion toast
 
   //#region 鼠标数据
-  window.cursorData = {
+  const cursorData = {
     lnglat: null,
     pixel: null,
     pos: null,
   };
   window.addEventListener("load", () => {
-    window.themap.on("mousemove", (e) => {
-      window.cursorData.lnglat = e.lnglat;
-      window.cursorData.pixel = e.pixel;
-      window.cursorData.pos = e.pos;
+    themap.on("mousemove", (e) => {
+      cursorData.lnglat = e.lnglat;
+      cursorData.pixel = e.pixel;
+      cursorData.pos = e.pos;
     });
   });
   //#endregion
@@ -436,15 +569,6 @@
   const jsonApi = "/service/fav/getFav";
   const favListTplApi = "/assets/biz/faves/tpl/fav.list.html";
   const favInfoWindowTplApi = "/assets/tpl/canvas-favinfowindow.html";
-
-  injectScript(
-    "https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js",
-    true
-  );
-  injectCSS(
-    "https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css",
-    true
-  );
 
   registerXHRInterceptor(
     (xhr) => xhr.url.includes(favListTplApi),
@@ -456,15 +580,15 @@
   );
 
   // 查询 favInfo
-  window.findFavInfo = (id) => {
-    if (!window?.amap?.faves?.items)
+  unsafeWindow.findFavInfo = (id) => {
+    if (!amap?.faves?.items)
       return {
         item_desc: null,
         item_id: null,
         id,
         item_pictures_info: null,
       };
-    const data = window.amap.faves.items.find((e) => e.id === id).data;
+    const data = amap.faves.items.find((e) => e.id === id).data;
     return {
       item_desc: data?.item_desc,
       item_id: data?.item_id,
@@ -474,34 +598,34 @@
   };
 
   // viewjs 图片查看器
-  window.viewjsInstances = [];
-  window.refreshViewjs = () => {
+  const viewjsInstances = [];
+  const refreshViewjs = () => {
     const stopCb = (e) => (e.preventDefault(), e.stopPropagation());
-    window.viewjsInstances.forEach((e) => e.destroy());
-    window.viewjsInstances = Array.from(
-      document.querySelectorAll(".favphoto")
-    ).map((e) => {
+    viewjsInstances.forEach((e) => e.destroy());
+    viewjsInstances.length = 0;
+    for (const e of document.querySelectorAll(".favphoto")) {
       e.removeEventListener("click", stopCb);
       e.addEventListener("click", stopCb);
-      return new window.Viewer(e, {
-        zIndex: 99999,
-      });
-    });
+      viewjsInstances.push(
+        new Viewer(e, {
+          zIndex: 99999,
+        })
+      );
+    }
   };
+  unsafeWindow.refreshViewjs = refreshViewjs;
 
   // 监听图片点击
   window.addEventListener("load", () => {
     setTimeout(() => {
-      window.refreshViewjs();
+      refreshViewjs();
     }, 1000);
   });
   //#endregion
 
   window.addEventListener("load", () => {
-    const initalOverlayIds = window.themap
-      .getAllOverlays()
-      .map((e) => e._amap_id);
-    var overlays = (window.overlays = []);
+    const initalOverlayIds = themap.getAllOverlays().map((e) => e._amap_id);
+    const overlays = [];
 
     //#region 工具面板
 
@@ -541,163 +665,6 @@
     `;
     document.body.appendChild(parseDom(mouseToolPanelUI));
 
-    //#region css
-    injectCSS(`
-.amap-copyright {
-    display: none !important;
-}
-.input-item {
-    position: relative;
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    width: 100%;
-    height: 3rem;
-}
-
-.input-item:last-child {
-    margin-bottom: 0;
-}
-
-.input-item>select, .input-item>input[type=text], .input-item>input[type=date] {
-    position: relative;
-    -ms-flex: 1 1 auto;
-    flex: 1 1 auto;
-    width: 1%;
-    margin-bottom: 0;
-}
-
-.input-item>select:not(:last-child), .input-item>input[type=text]:not(:last-child), .input-item>input[type=date]:not(:last-child) {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0
-}
-
-.input-item>select:not(:first-child), .input-item>input[type=text]:not(:first-child), .input-item>input[type=date]:not(:first-child) {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0
-}
-
-.input-item-prepend {
-    margin-right: -1px;
-}
-
-.input-item-text, input[type=text],input[type=date], select {
-    height: calc(2.2rem + 2px);
-}
-
-.input-item-text {
-    width: 6rem;
-    text-align: justify;
-    padding: 0.4rem 0.7rem;
-    display: inline-block;
-    text-justify: distribute-all-lines;
-    /*ie6-8*/
-    text-align-last: justify;
-    /* ie9*/
-    -moz-text-align-last: justify;
-    /*ff*/
-    -webkit-text-align-last: justify;
-    /*chrome 20+*/
-    -ms-flex-align: center;
-    align-items: center;
-    margin-bottom: 0;
-    font-size: 1rem;
-    font-weight: 400;
-    line-height: 1.5;
-    color: #495057;
-    text-align: center;
-    white-space: nowrap;
-    background-color: #e9ecef;
-    border: 1px solid #ced4da;
-    border-radius: .25rem;
-    border-bottom-right-radius: 0;
-    border-top-right-radius: 0;
-}
-
-.input-item-text input[type=checkbox], .input-item-text input[type=radio] {
-    margin-top: 0
-}
-
-.input-card {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    word-wrap: break-word;
-    background-color: #fff;
-    background-clip: border-box;
-    border-radius: .25rem;
-    width: 22rem;
-    border-width: 0;
-    border-radius: 0.4rem;
-    box-shadow: 0 2px 6px 0 rgba(114, 124, 245, .5);
-    position: fixed;
-    bottom: 1rem;
-    right: 5rem;
-    -ms-flex: 1 1 auto;
-    flex: 1 1 auto;
-    padding: 0.55rem 0.75rem;
-}
-
-.input-text {
-    line-height: 2rem;
-    margin-right: 2rem;
-}
-
-.btn {
-  display: inline-block;
-  font-weight: 400;
-  text-align: center;
-  white-space: nowrap;
-  vertical-align: middle;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  border: 1px solid transparent;
-  transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-  background-color: transparent;
-  background-image: none;
-  color: #25A5F7;
-  border-color: #25A5F7;
-  padding: .25rem .5rem;
-  line-height: 1.5;
-  border-radius: 1rem;
-  -webkit-appearance: button;
-  cursor:pointer;
-}
-
-.btn:hover {
-  color: #fff;
-  background-color: #25A5F7;
-  border-color: #25A5F7
-}
-
-.btn:hover {
-  text-decoration: none
-}
-
-.input-item{
-  height: 2.2rem;
-}
-.btn{
-  flex: 1;
-
-}
-.input-text{
-  width: 3rem;
-  margin-right: .5rem;
-}
-.input-card input[type=checkbox], input[type=radio] {
-  box-sizing: border-box;
-  padding: 0;
-  -webkit-box-sizing: border-box;
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0 0.5rem 0 0;
-}
-`);
-    //#endregion css
-
     //#endregion UI
 
     const mouseToolDom = document.querySelector('[data-type="mouse-tool"]');
@@ -734,15 +701,16 @@
     //#endregion utils
 
     //#region 工具控制面板事件
+    let mouseTool = null;
     function closeMouseTool() {
-      window.mouseTool.close(false);
+      mouseTool.close(false);
       var radios = document.getElementsByName("func");
       for (var i = 0; i < radios.length; i += 1) {
         radios[i].checked = false;
       }
     }
     document.getElementById("clear").onclick = function () {
-      window.themap.remove(overlays);
+      themap.remove(overlays);
       overlays.splice(0, overlays.length);
     };
     document.getElementById("lock").onclick = function (e) {
@@ -751,18 +719,17 @@
     document.getElementById("hide-lays").onclick = function (e) {
       const nextState = e.target.value;
       const hide = nextState === "隐藏";
-      if (hide) window.overlays.map((e) => e.hide());
-      else window.overlays.map((e) => e.show());
+      if (hide) overlays.map((e) => e.hide());
+      else overlays.map((e) => e.show());
       e.target.value = hide ? "显示" : "隐藏";
     };
     document.getElementById("fit-view").onclick = function () {
-      window.themap.setFitView(window.overlays);
+      themap.setFitView(overlays);
     };
     //#endregion 工具控制面板事件
 
     function initMouseTool() {
-      var mouseTool = new AMap.MouseTool(window.themap);
-      window.mouseTool = mouseTool;
+      mouseTool = new AMap.MouseTool(themap);
 
       //监听draw事件可获取画好的覆盖物
       mouseTool.on("drawing", ({ obj, type }) => {
@@ -782,14 +749,14 @@
 
             // 创建半径
             const radiusMarker = new AMap.Polyline({
-              path: [obj.getCenter(), window.cursorData.lnglat],
+              path: [obj.getCenter(), cursorData.lnglat],
               strokeColor: "blue",
               strokeStyle: "dashed",
             });
 
             // 创建半径终点 marker
             const radiusLineEndMarker = new AMap.Marker({
-              position: window.cursorData.lnglat,
+              position: cursorData.lnglat,
               content: redDotContent,
               offset: new AMap.Pixel(-3, -3),
             });
@@ -807,7 +774,7 @@
               text:
                 AMap.GeometryUtil.distance(
                   obj.getCenter(),
-                  window.cursorData.lnglat
+                  cursorData.lnglat
                 ).toFixed(2) + "公里",
               offset: new AMap.Pixel(-10, -10),
             });
@@ -825,7 +792,7 @@
               radiusLineEndMarker,
               radiusTextMarker,
             ]);
-            window.overlays.push(
+            overlays.push(
               centerMarker,
               radiusMarker,
               radiusLineEndMarker,
@@ -836,11 +803,7 @@
               obj.on("dragging", handleCircleDragging);
           } else {
             // 更新半径
-            updateCircleAttachment(
-              { obj, type },
-              window.cursorData.lnglat,
-              true
-            );
+            updateCircleAttachment({ obj, type }, cursorData.lnglat, true);
           }
         }
       });
@@ -995,7 +958,7 @@
         if (overlays.length > 0) {
           // 移除最后一个覆盖物
           var lastOverlay = overlays.pop();
-          window.themap.remove([
+          themap.remove([
             lastOverlay,
             ...Object.values(lastOverlay.getExtData()),
           ]);
@@ -1020,12 +983,12 @@
       if (data.length === 0) return;
       console.info(`上次数据`, data);
       const lays = data.map(unserializeObject).filter((e) => e);
-      window.themap.add(lays);
-      window.overlays.push(...lays);
+      themap.add(lays);
+      overlays.push(...lays);
 
       //#region 处理 circle 附属元素
       const mapper = Object.fromEntries(
-        window.overlays
+        overlays
           .filter((e) => e._last_amap_id)
           .map((lay) => [lay._last_amap_id, lay])
       );
@@ -1067,7 +1030,7 @@
 
     const SAVE_DATA_STORAGE_KEY = "SAVE_DATA_STORAGE_KEY";
     window.addEventListener("beforeunload", (e) => {
-      const allUserOverlays = window.themap.getAllOverlays().filter((e) => {
+      const allUserOverlays = themap.getAllOverlays().filter((e) => {
         return !initalOverlayIds.includes(e._amap_id);
       });
       if (!document.querySelector('[name="autosave"]').checked) return;
@@ -1094,7 +1057,6 @@
         return serializedData;
       }
 
-      const AMap = window.AMap;
       AMap.Text.prototype.toJSON = function () {
         this.setOptions({ position: this.getPosition() });
         const unsavedKeys = ["extData", "map", "content"];
@@ -1158,15 +1120,6 @@
       const instance = AMap[clazz].unserialize(JSON.stringify(data));
       instance._last_amap_id = data._amap_id;
       return instance;
-      // switch (data.className) {
-      //   case "AMap.Text":
-      //     return AMap.Text.unserialize(JSON.stringify(data));
-      //   case "Overlay.Circle":
-      //     return AMap.Circle.unserialize(JSON.stringify(data));
-      //   case "AMap.Marker":
-      //     return AMap.Marker.unserialize(JSON.stringify(data));
-      // }
-      // return null;
     }
 
     //#endregion
