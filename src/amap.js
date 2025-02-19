@@ -674,9 +674,22 @@
         var mouseTool = new AMap.MouseTool(window.themap);
         window.mouseTool = mouseTool
 
-        function updateCircleAttachment({ obj, type }, radiusEndLngLat, force = false) {
+        function updateCircleAttachment({ obj, type }, radiusEndLngLat, force = false, originEvent = null) {
             const ext = obj.getExtData() || {}
             if (!force && ext.drawing) return
+            if (!radiusEndLngLat) {
+                // 如果没有 radiusEndLngLat 说明是平移
+                // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
+                const curLnglat = originEvent.lnglat
+                const center = obj.getCenter()
+                const raidus = obj.getRadius()
+                // 计算鼠标位置与圆心的经纬度差值
+                const dLng = curLnglat.getLng() - center.getLng()
+                const dLat = curLnglat.getLat() - center.getLat()
+                // 使用反正切函数计算角度（弧度）
+                const angle = Math.atan2(dLat, dLng) // 弧度
+                radiusEndLngLat = center.offset(Math.cos(angle) * raidus, Math.sin(angle) * raidus)
+            }
 
             const newCenter = obj.getCenter()
 
@@ -696,7 +709,7 @@
             ext.radiusTextMarker.setText(AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) + '公里')
         }
         function handleCircleDragging(event) {
-            updateCircleAttachment({ obj: event.target, type: event.type }, event.lnglat)
+            updateCircleAttachment({ obj: event.target, type: event.type }, undefined, false, event)
         }
         //监听draw事件可获取画好的覆盖物
         var overlays = window.overlays = [];
