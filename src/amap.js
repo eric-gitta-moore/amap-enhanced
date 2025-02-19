@@ -15,15 +15,12 @@
 // @resource        viewer.min.css https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css
 // ==/UserScript==
 
-(function () {
-  "use strict";
-
-  //#region injectCSS
-  window.addEventListener("load", () => {
-    GM_addStyle(GM_getResourceText("toastify.min.css"));
-    GM_addStyle(GM_getResourceText("viewer.min.css"));
-    GM_addStyle(
-      `
+//#region injectCSS
+window.addEventListener("load", () => {
+  GM_addStyle(GM_getResourceText("toastify.min.css"));
+  GM_addStyle(GM_getResourceText("viewer.min.css"));
+  GM_addStyle(
+    `
 .favphoto::-webkit-scrollbar { 
     /* 隐藏默认的滚动条 */
     -webkit-appearance: none;
@@ -53,9 +50,9 @@
     object-fit: cover;
 }
 `
-    );
-    GM_addStyle(
-      `
+  );
+  GM_addStyle(
+    `
 .amap-copyright {
     display: none !important;
 }
@@ -209,122 +206,122 @@
   margin: 0 0.5rem 0 0;
 }
 `
-    );
+  );
+});
+//#endregion injectCSS
+
+//#region library
+// 请求拦截器注册中心
+const interceptorRegistry = {
+  xhr: [],
+  fetch: [],
+};
+
+// 注册XHR拦截器
+function registerXHRInterceptor(checker, handler) {
+  interceptorRegistry.xhr.push({
+    checker: checker,
+    handler: handler,
   });
-  //#endregion injectCSS
+}
 
-  //#region library
-  // 请求拦截器注册中心
-  const interceptorRegistry = {
-    xhr: [],
-    fetch: [],
-  };
+// 注册Fetch拦截器
+function registerFetchInterceptor(checker, handler) {
+  interceptorRegistry.fetch.push({
+    checker: checker,
+    handler: handler,
+  });
+}
 
-  // 注册XHR拦截器
-  function registerXHRInterceptor(checker, handler) {
-    interceptorRegistry.xhr.push({
-      checker: checker,
-      handler: handler,
-    });
-  }
-
-  // 注册Fetch拦截器
-  function registerFetchInterceptor(checker, handler) {
-    interceptorRegistry.fetch.push({
-      checker: checker,
-      handler: handler,
-    });
-  }
-
-  // 执行XHR拦截器
-  function executeXHRInterceptors(xhr) {
-    if (xhr.responseType === "" || xhr.responseType === "text") {
-      for (const interceptor of interceptorRegistry.xhr) {
-        if (interceptor.checker(xhr)) {
-          const response = interceptor.handler(xhr);
-          if (response) {
-            Object.defineProperty(xhr, "response", {
-              writable: true,
-              value: response,
-            });
-            Object.defineProperty(xhr, "responseText", {
-              writable: true,
-              value: xhr.response,
-            });
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  // 执行Fetch拦截器
-  async function executeFetchInterceptors(input, init) {
-    for (const interceptor of interceptorRegistry.fetch) {
-      if (interceptor.checker(input, init)) {
-        const response = await interceptor.handler(input, init);
+// 执行XHR拦截器
+function executeXHRInterceptors(xhr) {
+  if (xhr.responseType === "" || xhr.responseType === "text") {
+    for (const interceptor of interceptorRegistry.xhr) {
+      if (interceptor.checker(xhr)) {
+        const response = interceptor.handler(xhr);
         if (response) {
-          return new Response(response.data, {
-            status: response.status || 200,
-            headers: response.headers || {
-              "Content-Type": "application/json",
-            },
+          Object.defineProperty(xhr, "response", {
+            writable: true,
+            value: response,
           });
+          Object.defineProperty(xhr, "responseText", {
+            writable: true,
+            value: xhr.response,
+          });
+          break;
         }
       }
     }
-    return null;
   }
+}
 
-  // 保存原始的 XMLHttpRequest
-  const originalXHR = unsafeWindow.XMLHttpRequest;
-
-  // 创建新的 XMLHttpRequest 构造函数
-  unsafeWindow.XMLHttpRequest = function () {
-    const xhr = new originalXHR();
-    const originalOpen = xhr.open;
-    const originalSend = xhr.send;
-
-    // 重写 open 方法
-    xhr.open = function () {
-      this.method = arguments[0];
-      this.url = arguments[1];
-      return originalOpen.apply(this, arguments);
-    };
-
-    // 重写 send 方法
-    xhr.send = function () {
-      const originalOnReadyStateChange = xhr.onreadystatechange;
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4) {
-          executeXHRInterceptors(xhr);
-        }
-        if (originalOnReadyStateChange) {
-          originalOnReadyStateChange.apply(this, arguments);
-        }
-      };
-      return originalSend.apply(this, arguments);
-    };
-
-    return xhr;
-  };
-
-  // 保存原始的 fetch
-  const originalFetch = unsafeWindow.fetch;
-
-  // 重写 fetch
-  unsafeWindow.fetch = async function (input, init) {
-    const interceptedResponse = await executeFetchInterceptors(input, init);
-    if (interceptedResponse) {
-      return interceptedResponse;
+// 执行Fetch拦截器
+async function executeFetchInterceptors(input, init) {
+  for (const interceptor of interceptorRegistry.fetch) {
+    if (interceptor.checker(input, init)) {
+      const response = await interceptor.handler(input, init);
+      if (response) {
+        return new Response(response.data, {
+          status: response.status || 200,
+          headers: response.headers || {
+            "Content-Type": "application/json",
+          },
+        });
+      }
     }
-    return originalFetch(input, init);
+  }
+  return null;
+}
+
+// 保存原始的 XMLHttpRequest
+const originalXHR = unsafeWindow.XMLHttpRequest;
+
+// 创建新的 XMLHttpRequest 构造函数
+unsafeWindow.XMLHttpRequest = function () {
+  const xhr = new originalXHR();
+  const originalOpen = xhr.open;
+  const originalSend = xhr.send;
+
+  // 重写 open 方法
+  xhr.open = function () {
+    this.method = arguments[0];
+    this.url = arguments[1];
+    return originalOpen.apply(this, arguments);
   };
 
-  function parseDom(str) {
-    return Document.parseHTMLUnsafe(str).body.childNodes[0];
+  // 重写 send 方法
+  xhr.send = function () {
+    const originalOnReadyStateChange = xhr.onreadystatechange;
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        executeXHRInterceptors(xhr);
+      }
+      if (originalOnReadyStateChange) {
+        originalOnReadyStateChange.apply(this, arguments);
+      }
+    };
+    return originalSend.apply(this, arguments);
+  };
+
+  return xhr;
+};
+
+// 保存原始的 fetch
+const originalFetch = unsafeWindow.fetch;
+
+// 重写 fetch
+unsafeWindow.fetch = async function (input, init) {
+  const interceptedResponse = await executeFetchInterceptors(input, init);
+  if (interceptedResponse) {
+    return interceptedResponse;
   }
-  const favListTpl = `
+  return originalFetch(input, init);
+};
+
+function parseDom(str) {
+  return Document.parseHTMLUnsafe(str).body.childNodes[0];
+}
+const favListTpl = `
 <%
 	var infoArray = obj.items && obj.items.length > 0 ? obj.items : false;
 %>
@@ -453,7 +450,7 @@
 
 `;
 
-  const favInfoWindowTpl = `
+const favInfoWindowTpl = `
     
 
 <%
@@ -521,126 +518,126 @@
 </div>
 `;
 
-  const redDotContent =
-    '<div style="width: 6px; height: 6px; background-color: #f00; border-radius: 50%;user-select: none;"></div>';
-  // registerFetchInterceptor(
-  //     (input, init) => {
-  //         const url = typeof input === 'string' ? input : input.url;
-  //         return url.includes('/api/example');
-  //     },
-  //     async function(input, init) {
-  //         return {
-  //             status: 200,
-  //             data: {
-  //                 modified: true,
-  //                 message: '这是一个被拦截的Fetch请求'
-  //             }
-  //         };
-  //     }
-  // );
-  //#endregion library
+const redDotContent =
+  '<div style="width: 6px; height: 6px; background-color: #f00; border-radius: 50%;user-select: none;"></div>';
+// registerFetchInterceptor(
+//     (input, init) => {
+//         const url = typeof input === 'string' ? input : input.url;
+//         return url.includes('/api/example');
+//     },
+//     async function(input, init) {
+//         return {
+//             status: 200,
+//             data: {
+//                 modified: true,
+//                 message: '这是一个被拦截的Fetch请求'
+//             }
+//         };
+//     }
+// );
+//#endregion library
 
-  //#region toast
-  function toast(text, options) {
-    Toastify({
-      text,
-      position: "center",
-      ...options,
-    }).showToast();
-  }
-  //#endregion toast
+//#region toast
+function toast(text, options) {
+  Toastify({
+    text,
+    position: "center",
+    ...options,
+  }).showToast();
+}
+//#endregion toast
 
-  //#region 鼠标数据
-  const cursorData = {
-    lnglat: null,
-    pixel: null,
-    pos: null,
-  };
-  window.addEventListener("load", () => {
-    themap.on("mousemove", (e) => {
-      cursorData.lnglat = e.lnglat;
-      cursorData.pixel = e.pixel;
-      cursorData.pos = e.pos;
-    });
+//#region 鼠标数据
+const cursorData = {
+  lnglat: null,
+  pixel: null,
+  pos: null,
+};
+window.addEventListener("load", () => {
+  themap.on("mousemove", (e) => {
+    cursorData.lnglat = e.lnglat;
+    cursorData.pixel = e.pixel;
+    cursorData.pos = e.pos;
   });
-  //#endregion
+});
+//#endregion
 
-  //#region 处理收藏图片显示
-  const jsonApi = "/service/fav/getFav";
-  const favListTplApi = "/assets/biz/faves/tpl/fav.list.html";
-  const favInfoWindowTplApi = "/assets/tpl/canvas-favinfowindow.html";
+//#region 处理收藏图片显示
+const jsonApi = "/service/fav/getFav";
+const favListTplApi = "/assets/biz/faves/tpl/fav.list.html";
+const favInfoWindowTplApi = "/assets/tpl/canvas-favinfowindow.html";
 
-  registerXHRInterceptor(
-    (xhr) => xhr.url.includes(favListTplApi),
-    (xhr) => favListTpl
-  );
-  registerXHRInterceptor(
-    (xhr) => xhr.url.includes(favInfoWindowTplApi),
-    (xhr) => favInfoWindowTpl
-  );
+registerXHRInterceptor(
+  (xhr) => xhr.url.includes(favListTplApi),
+  (xhr) => favListTpl
+);
+registerXHRInterceptor(
+  (xhr) => xhr.url.includes(favInfoWindowTplApi),
+  (xhr) => favInfoWindowTpl
+);
 
-  // 查询 favInfo
-  unsafeWindow.findFavInfo = (id) => {
-    if (!amap?.faves?.items)
-      return {
-        item_desc: null,
-        item_id: null,
-        id,
-        item_pictures_info: null,
-      };
-    const data = amap.faves.items.find((e) => e.id === id).data;
+// 查询 favInfo
+unsafeWindow.findFavInfo = (id) => {
+  if (!amap?.faves?.items)
     return {
-      item_desc: data?.item_desc,
-      item_id: data?.item_id,
+      item_desc: null,
+      item_id: null,
       id,
-      item_pictures_info: data?.item_pictures_info || [],
+      item_pictures_info: null,
     };
+  const data = amap.faves.items.find((e) => e.id === id).data;
+  return {
+    item_desc: data?.item_desc,
+    item_id: data?.item_id,
+    id,
+    item_pictures_info: data?.item_pictures_info || [],
   };
+};
 
-  // viewjs 图片查看器
-  const viewjsInstances = [];
-  const refreshViewjs = () => {
-    const stopCb = (e) => (e.preventDefault(), e.stopPropagation());
-    viewjsInstances.forEach((e) => e.destroy());
-    viewjsInstances.length = 0;
-    for (const e of document.querySelectorAll(".favphoto")) {
-      e.removeEventListener("click", stopCb);
-      e.addEventListener("click", stopCb);
-      viewjsInstances.push(
-        new Viewer(e, {
-          zIndex: 99999,
-        })
-      );
-    }
-  };
-  unsafeWindow.refreshViewjs = refreshViewjs;
+// viewjs 图片查看器
+const viewjsInstances = [];
+const refreshViewjs = () => {
+  const stopCb = (e) => (e.preventDefault(), e.stopPropagation());
+  viewjsInstances.forEach((e) => e.destroy());
+  viewjsInstances.length = 0;
+  for (const e of document.querySelectorAll(".favphoto")) {
+    e.removeEventListener("click", stopCb);
+    e.addEventListener("click", stopCb);
+    viewjsInstances.push(
+      new Viewer(e, {
+        zIndex: 99999,
+      })
+    );
+  }
+};
+unsafeWindow.refreshViewjs = refreshViewjs;
 
-  // 监听图片点击
-  window.addEventListener("load", () => {
-    setTimeout(() => {
-      refreshViewjs();
-    }, 1000);
-  });
-  //#endregion
+// 监听图片点击
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    refreshViewjs();
+  }, 1000);
+});
+//#endregion
 
-  window.addEventListener("load", () => {
-    const initalOverlayIds = themap.getAllOverlays().map((e) => e._amap_id);
-    const overlays = [];
+window.addEventListener("load", () => {
+  const initalOverlayIds = themap.getAllOverlays().map((e) => e._amap_id);
+  const overlays = [];
 
-    //#region 工具面板
+  //#region 工具面板
 
-    //#region UI
-    const amapAppDownload = document.querySelector("#amapAppDownload");
-    amapAppDownload.style.display = "none";
+  //#region UI
+  const amapAppDownload = document.querySelector("#amapAppDownload");
+  amapAppDownload.style.display = "none";
 
-    const mouseToolUI = `
+  const mouseToolUI = `
 <a class="item active" data-type="mouse-tool" href="javascript:void(0)"> <span class="icon"> <i class="iconfont icon-iconshoucangjia"></i> </span> <span class="name">工具</span>  </a>
 `;
-    document
-      .querySelector("#layerbox_item .show-list")
-      .appendChild(parseDom(mouseToolUI));
+  document
+    .querySelector("#layerbox_item .show-list")
+    .appendChild(parseDom(mouseToolUI));
 
-    const mouseToolPanelUI = `
+  const mouseToolPanelUI = `
     <div class="input-card" style='width: 17rem;'>
         <div class="input-item">
             <input type="radio" name='func' value='marker'><span class="input-text">画点</span>
@@ -663,465 +660,461 @@
         </div>
     </div>
     `;
-    document.body.appendChild(parseDom(mouseToolPanelUI));
+  document.body.appendChild(parseDom(mouseToolPanelUI));
 
-    //#endregion UI
+  //#endregion UI
 
-    const mouseToolDom = document.querySelector('[data-type="mouse-tool"]');
-    const opratePanel = document.querySelector(".input-card");
-    mouseToolDom.addEventListener("click", () => {
-      const isShow = opratePanel.style.display !== "none";
-      if (isShow) {
-        opratePanel.style.display = "none";
-        mouseToolDom.classList.remove("active");
-      } else {
-        opratePanel.style.display = "flex";
-        mouseToolDom.classList.add("active");
-      }
+  const mouseToolDom = document.querySelector('[data-type="mouse-tool"]');
+  const opratePanel = document.querySelector(".input-card");
+  mouseToolDom.addEventListener("click", () => {
+    const isShow = opratePanel.style.display !== "none";
+    if (isShow) {
+      opratePanel.style.display = "none";
+      mouseToolDom.classList.remove("active");
+    } else {
+      opratePanel.style.display = "flex";
+      mouseToolDom.classList.add("active");
+    }
+  });
+
+  //#region utils
+  function getLockState() {
+    const lockDom = document.getElementById("lock");
+    const nextState = lockDom.value;
+    return nextState === "锁定";
+  }
+  function lockOverlays() {
+    const lockDom = document.getElementById("lock");
+    const nextState = lockDom.value;
+    const locked = nextState === "锁定";
+    overlays.map((item) => {
+      item.setOptions({
+        draggable: locked ? false : true,
+      });
     });
+    lockDom.value = locked ? "解锁" : "锁定";
+    return nextState;
+  }
+  //#endregion utils
 
-    //#region utils
-    function getLockState() {
-      const lockDom = document.getElementById("lock");
-      const nextState = lockDom.value;
-      return nextState === "锁定";
+  //#region 工具控制面板事件
+  let mouseTool = null;
+  function closeMouseTool() {
+    mouseTool.close(false);
+    var radios = document.getElementsByName("func");
+    for (var i = 0; i < radios.length; i += 1) {
+      radios[i].checked = false;
     }
-    function lockOverlays() {
-      const lockDom = document.getElementById("lock");
-      const nextState = lockDom.value;
-      const locked = nextState === "锁定";
-      overlays.map((item) => {
-        item.setOptions({
-          draggable: locked ? false : true,
-        });
-      });
-      lockDom.value = locked ? "解锁" : "锁定";
-      return nextState;
-    }
-    //#endregion utils
+  }
+  document.getElementById("clear").onclick = function () {
+    themap.remove(overlays);
+    overlays.splice(0, overlays.length);
+  };
+  document.getElementById("lock").onclick = function (e) {
+    toast(`已经${lockOverlays()}`);
+  };
+  document.getElementById("hide-lays").onclick = function (e) {
+    const nextState = e.target.value;
+    const hide = nextState === "隐藏";
+    if (hide) overlays.map((e) => e.hide());
+    else overlays.map((e) => e.show());
+    e.target.value = hide ? "显示" : "隐藏";
+  };
+  document.getElementById("fit-view").onclick = function () {
+    themap.setFitView(overlays);
+  };
+  //#endregion 工具控制面板事件
 
-    //#region 工具控制面板事件
-    let mouseTool = null;
-    function closeMouseTool() {
-      mouseTool.close(false);
-      var radios = document.getElementsByName("func");
-      for (var i = 0; i < radios.length; i += 1) {
-        radios[i].checked = false;
-      }
-    }
-    document.getElementById("clear").onclick = function () {
-      themap.remove(overlays);
-      overlays.splice(0, overlays.length);
-    };
-    document.getElementById("lock").onclick = function (e) {
-      toast(`已经${lockOverlays()}`);
-    };
-    document.getElementById("hide-lays").onclick = function (e) {
-      const nextState = e.target.value;
-      const hide = nextState === "隐藏";
-      if (hide) overlays.map((e) => e.hide());
-      else overlays.map((e) => e.show());
-      e.target.value = hide ? "显示" : "隐藏";
-    };
-    document.getElementById("fit-view").onclick = function () {
-      themap.setFitView(overlays);
-    };
-    //#endregion 工具控制面板事件
+  function initMouseTool() {
+    mouseTool = new AMap.MouseTool(themap);
 
-    function initMouseTool() {
-      mouseTool = new AMap.MouseTool(themap);
-
-      //监听draw事件可获取画好的覆盖物
-      mouseTool.on("drawing", ({ obj, type }) => {
-        const ext = obj.getExtData() || {};
-        obj.setExtData({ ...ext, drawing: true });
-
-        if (obj.className === "Overlay.Circle") {
-          const thisMap = obj.getMap();
-
-          if (!ext.centerMarker) {
-            // 创建圆心
-            const centerMarker = new AMap.Marker({
-              position: obj.getCenter(),
-              content: redDotContent,
-              offset: new AMap.Pixel(-3, -3),
-            });
-
-            // 创建半径
-            const radiusMarker = new AMap.Polyline({
-              path: [obj.getCenter(), cursorData.lnglat],
-              strokeColor: "blue",
-              strokeStyle: "dashed",
-            });
-
-            // 创建半径终点 marker
-            const radiusLineEndMarker = new AMap.Marker({
-              position: cursorData.lnglat,
-              content: redDotContent,
-              offset: new AMap.Pixel(-3, -3),
-            });
-
-            // 创建半径大小描述
-            const radiusTextMarker = new AMap.Text({
-              position: new AMap.LngLat(
-                (radiusLineEndMarker.getPosition().getLng() +
-                  obj.getCenter().getLng()) /
-                  2,
-                (radiusLineEndMarker.getPosition().getLat() +
-                  obj.getCenter().getLat()) /
-                  2
-              ),
-              text:
-                AMap.GeometryUtil.distance(
-                  obj.getCenter(),
-                  cursorData.lnglat
-                ).toFixed(2) + "公里",
-              offset: new AMap.Pixel(-10, -10),
-            });
-
-            obj.setExtData({
-              ...ext,
-              centerMarker,
-              radiusMarker,
-              radiusLineEndMarker,
-              radiusTextMarker,
-            });
-            thisMap.add([
-              centerMarker,
-              radiusMarker,
-              radiusLineEndMarker,
-              radiusTextMarker,
-            ]);
-            overlays.push(
-              centerMarker,
-              radiusMarker,
-              radiusLineEndMarker,
-              radiusTextMarker
-            );
-
-            if (!obj.hasEvents("dragging", handleCircleDragging))
-              obj.on("dragging", handleCircleDragging);
-          } else {
-            // 更新半径
-            updateCircleAttachment({ obj, type }, cursorData.lnglat, true);
-          }
-        }
-      });
-      mouseTool.on("draw", function ({ obj, type }) {
-        obj.setExtData({ ...obj.getExtData(), drawing: false });
-        overlays.push(obj);
-        closeMouseTool();
-      });
-
-      function draw(type) {
-        switch (type) {
-          case "marker": {
-            mouseTool.marker({
-              draggable: getLockState(),
-              //同Marker的Option设置
-            });
-            break;
-          }
-          case "polyline": {
-            mouseTool.polyline({
-              draggable: getLockState(),
-              strokeColor: "#80d8ff",
-              //同Polyline的Option设置
-            });
-            break;
-          }
-          case "polygon": {
-            mouseTool.polygon({
-              fillColor: "#00b0ff",
-              draggable: getLockState(),
-              strokeColor: "#80d8ff",
-              bubble: true,
-              //同Polygon的Option设置
-            });
-            break;
-          }
-          case "rectangle": {
-            mouseTool.rectangle({
-              fillColor: "#00b0ff",
-              draggable: getLockState(),
-              strokeColor: "#80d8ff",
-              bubble: true,
-              //同Polygon的Option设置
-            });
-            break;
-          }
-          case "circle": {
-            mouseTool.circle({
-              strokeColor: "red",
-              strokeStyle: "dashed",
-              fillOpacity: 0,
-              draggable: getLockState(),
-              bubble: true,
-              //同Circle的Option设置
-            });
-            break;
-          }
-          case "area": {
-            mouseTool.measureArea({
-              fillColor: "#00b0ff",
-              strokeColor: "#80d8ff",
-              bubble: true,
-              draggable: getLockState(),
-              //同Circle的Option设置
-            });
-            break;
-          }
-        }
-      }
-      var radios = document.getElementsByName("func");
-      for (var i = 0; i < radios.length; i += 1) {
-        radios[i].onchange = function (e) {
-          draw(e.target.value);
-        };
-      }
-    }
-
-    //#region 圆圈附属元素相关
-    function updateCircleAttachment(
-      { obj, type },
-      radiusEndLngLat,
-      force = false,
-      originEvent = null
-    ) {
+    //监听draw事件可获取画好的覆盖物
+    mouseTool.on("drawing", ({ obj, type }) => {
       const ext = obj.getExtData() || {};
-      if (!force && ext.drawing) return;
-      if (!radiusEndLngLat) {
-        // 如果没有 radiusEndLngLat 说明是平移
-        // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
-        const curLnglat = originEvent.lnglat;
-        const center = obj.getCenter();
-        const raidus = obj.getRadius();
-        // 计算鼠标位置与圆心的经纬度差值
-        const dLng = curLnglat.getLng() - center.getLng();
-        const dLat = curLnglat.getLat() - center.getLat();
-        // 使用反正切函数计算角度（弧度）
-        const angle = Math.atan2(dLat, dLng); // 弧度
-        radiusEndLngLat = center.offset(
-          Math.cos(angle) * raidus,
-          Math.sin(angle) * raidus
-        );
-      }
+      obj.setExtData({ ...ext, drawing: true });
 
-      const newCenter = obj.getCenter();
+      if (obj.className === "Overlay.Circle") {
+        const thisMap = obj.getMap();
 
-      // 修正圆心点
-      ext.centerMarker.setPosition(newCenter);
+        if (!ext.centerMarker) {
+          // 创建圆心
+          const centerMarker = new AMap.Marker({
+            position: obj.getCenter(),
+            content: redDotContent,
+            offset: new AMap.Pixel(-3, -3),
+          });
 
-      // 半径线
-      ext.radiusMarker.setPath([newCenter, radiusEndLngLat]);
+          // 创建半径
+          const radiusMarker = new AMap.Polyline({
+            path: [obj.getCenter(), cursorData.lnglat],
+            strokeColor: "blue",
+            strokeStyle: "dashed",
+          });
 
-      // 半径远端标点
-      ext.radiusLineEndMarker.setPosition(radiusEndLngLat);
+          // 创建半径终点 marker
+          const radiusLineEndMarker = new AMap.Marker({
+            position: cursorData.lnglat,
+            content: redDotContent,
+            offset: new AMap.Pixel(-3, -3),
+          });
 
-      // 半径长度
-      ext.radiusTextMarker.setPosition(
-        new AMap.LngLat(
-          (ext.radiusMarker.getPath()[0].getLng() +
-            ext.radiusMarker.getPath()[1].getLng()) /
-            2,
-          (ext.radiusMarker.getPath()[0].getLat() +
-            ext.radiusMarker.getPath()[1].getLat()) /
-            2
-        )
-      );
-      ext.radiusTextMarker.setText(
-        AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
-          "公里"
-      );
-    }
-    function handleCircleDragging(event) {
-      updateCircleAttachment(
-        { obj: event.target, type: event.type },
-        undefined,
-        false,
-        event
-      );
-    }
-    //#endregion 圆圈附属元素相关
+          // 创建半径大小描述
+          const radiusTextMarker = new AMap.Text({
+            position: new AMap.LngLat(
+              (radiusLineEndMarker.getPosition().getLng() +
+                obj.getCenter().getLng()) /
+                2,
+              (radiusLineEndMarker.getPosition().getLat() +
+                obj.getCenter().getLat()) /
+                2
+            ),
+            text:
+              AMap.GeometryUtil.distance(
+                obj.getCenter(),
+                cursorData.lnglat
+              ).toFixed(2) + "公里",
+            offset: new AMap.Pixel(-10, -10),
+          });
 
-    setTimeout(() => {
-      initMouseTool();
-    }, 1000);
-    //#endregion 工具面板
-
-    //#region 撤销功能
-    // 添加键盘事件监听，实现撤销功能
-    document.addEventListener("keydown", function (e) {
-      // 检测是否按下Ctrl/Cmd+Z
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        e.preventDefault(); // 阻止浏览器默认的撤销行为
-        if (overlays.length > 0) {
-          // 移除最后一个覆盖物
-          var lastOverlay = overlays.pop();
-          themap.remove([
-            lastOverlay,
-            ...Object.values(lastOverlay.getExtData()),
+          obj.setExtData({
+            ...ext,
+            centerMarker,
+            radiusMarker,
+            radiusLineEndMarker,
+            radiusTextMarker,
+          });
+          thisMap.add([
+            centerMarker,
+            radiusMarker,
+            radiusLineEndMarker,
+            radiusTextMarker,
           ]);
-        }
-      }
-    });
-    //#endregion 撤销功能
+          overlays.push(
+            centerMarker,
+            radiusMarker,
+            radiusLineEndMarker,
+            radiusTextMarker
+          );
 
-    //#region 自动保存 自动加载
-    setTimeout(() => {
-      document.querySelector('[name="autosave"]').checked &&
-        initLatestAutosave();
-    }, 1000);
-    function initLatestAutosave() {
-      if (!localStorage.getItem(SAVE_DATA_STORAGE_KEY)) return;
-      const data = JSON.parse(localStorage.getItem(SAVE_DATA_STORAGE_KEY));
-      if (!Array.isArray(data)) {
-        // 数据有问题
-        localStorage.removeItem(SAVE_DATA_STORAGE_KEY);
-        return;
-      }
-      if (data.length === 0) return;
-      console.info(`上次数据`, data);
-      const lays = data.map(unserializeObject).filter((e) => e);
-      themap.add(lays);
-      overlays.push(...lays);
-
-      //#region 处理 circle 附属元素
-      const mapper = Object.fromEntries(
-        overlays
-          .filter((e) => e._last_amap_id)
-          .map((lay) => [lay._last_amap_id, lay])
-      );
-      lays
-        .filter((lay) => lay.className === "Overlay.Circle")
-        .map((item) => {
-          const opts = item.getOptions();
-          for (const key in opts.extData) {
-            if (Object.prototype.hasOwnProperty.call(opts.extData, key)) {
-              // 复原绑定关系，半径、中心点、圆周点、半径长度
-              const element = opts.extData[key];
-              if (element instanceof Object && "_amap_id" in element) {
-                const last_amap_id = element._amap_id;
-                const lay = mapper[last_amap_id];
-                opts.extData[key] = lay;
-              }
-            }
-          }
-          return item;
-        })
-        .map((obj) => {
-          // 绑定 circle 附属元素事件
           if (!obj.hasEvents("dragging", handleCircleDragging))
             obj.on("dragging", handleCircleDragging);
-        });
-
-      //#endregion 处理 circle 附属元素
-
-      toast("已自动加载上次保存的标记");
-      lockOverlays();
-      toast("已经自动锁定所有元素");
-    }
-
-    // 自动记忆所有 overlays
-    window.addEventListener("beforeunload", (e) => {
-      e.preventDefault();
-      e.returnValue = "";
-    });
-
-    const SAVE_DATA_STORAGE_KEY = "SAVE_DATA_STORAGE_KEY";
-    window.addEventListener("beforeunload", (e) => {
-      const allUserOverlays = themap.getAllOverlays().filter((e) => {
-        return !initalOverlayIds.includes(e._amap_id);
-      });
-      if (!document.querySelector('[name="autosave"]').checked) return;
-      // 所有overlays转成json保存
-      const saveData = allUserOverlays.map(serializeObject).filter((e) => e);
-      localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
-    });
-
-    //#endregion 自动保存 自动加载
-
-    //#region AMap 对象序列化
-    hackAMapObjectSerialize();
-    function hackAMapObjectSerialize() {
-      function serializeCommon(unsavedKeys = ["extData", "map"]) {
-        const opt = this.getOptions();
-        const saveData = Object.fromEntries(
-          Object.entries(opt).filter(([k, v]) => !unsavedKeys.includes(k))
-        );
-        const serializedData = {
-          className: this.className,
-          _amap_id: this._amap_id,
-          options: JSON.parse(JSON.stringify(saveData)),
-        };
-        return serializedData;
+        } else {
+          // 更新半径
+          updateCircleAttachment({ obj, type }, cursorData.lnglat, true);
+        }
       }
+    });
+    mouseTool.on("draw", function ({ obj, type }) {
+      obj.setExtData({ ...obj.getExtData(), drawing: false });
+      overlays.push(obj);
+      closeMouseTool();
+    });
 
-      AMap.Text.prototype.toJSON = function () {
-        this.setOptions({ position: this.getPosition() });
-        const unsavedKeys = ["extData", "map", "content"];
-        return serializeCommon.bind(this)(unsavedKeys);
-      };
-      AMap.Text.unserialize = (str) => new AMap.Text(JSON.parse(str).options);
-
-      AMap.Circle.prototype.toJSON = function () {
-        this.setOptions({ center: this.getCenter() });
-        const data = serializeCommon.bind(this)();
-        data.options.extData = JSON.parse(JSON.stringify(this.getExtData()));
-        return data;
-      };
-      AMap.Circle.unserialize = (str) =>
-        new AMap.Circle(JSON.parse(str).options);
-
-      AMap.Marker.prototype.toJSON = function () {
-        this.setOptions({ position: this.getPosition() });
-        return serializeCommon.bind(this)();
-      };
-      AMap.Marker.unserialize = (str) =>
-        new AMap.Marker(JSON.parse(str).options);
-
-      AMap.Polyline.prototype.toJSON = function () {
-        this.setOptions({ path: this.getPath() });
-        return serializeCommon.bind(this)();
-      };
-      AMap.Polyline.unserialize = (str) =>
-        new AMap.Polyline(JSON.parse(str).options);
-
-      AMap.Polygon.prototype.toJSON = function () {
-        this.setOptions({ path: this.getPath() });
-        return serializeCommon.bind(this)();
-      };
-      AMap.Polygon.unserialize = (str) =>
-        new AMap.Polygon(JSON.parse(str).options);
-
-      AMap.Rectangle.prototype.toJSON = function () {
-        this.setOptions({ bounds: this.getBounds() });
-        return serializeCommon.bind(this)();
-      };
-      AMap.Rectangle.unserialize = (str) => {
-        const opts = JSON.parse(str).options;
-        return new AMap.Rectangle({
-          ...opts,
-          bounds: new AMap.Bounds(
-            opts.bounds.slice(0, 2),
-            opts.bounds.slice(2, 4)
-          ),
-        });
+    function draw(type) {
+      switch (type) {
+        case "marker": {
+          mouseTool.marker({
+            draggable: getLockState(),
+            //同Marker的Option设置
+          });
+          break;
+        }
+        case "polyline": {
+          mouseTool.polyline({
+            draggable: getLockState(),
+            strokeColor: "#80d8ff",
+            //同Polyline的Option设置
+          });
+          break;
+        }
+        case "polygon": {
+          mouseTool.polygon({
+            fillColor: "#00b0ff",
+            draggable: getLockState(),
+            strokeColor: "#80d8ff",
+            bubble: true,
+            //同Polygon的Option设置
+          });
+          break;
+        }
+        case "rectangle": {
+          mouseTool.rectangle({
+            fillColor: "#00b0ff",
+            draggable: getLockState(),
+            strokeColor: "#80d8ff",
+            bubble: true,
+            //同Polygon的Option设置
+          });
+          break;
+        }
+        case "circle": {
+          mouseTool.circle({
+            strokeColor: "red",
+            strokeStyle: "dashed",
+            fillOpacity: 0,
+            draggable: getLockState(),
+            bubble: true,
+            //同Circle的Option设置
+          });
+          break;
+        }
+        case "area": {
+          mouseTool.measureArea({
+            fillColor: "#00b0ff",
+            strokeColor: "#80d8ff",
+            bubble: true,
+            draggable: getLockState(),
+            //同Circle的Option设置
+          });
+          break;
+        }
+      }
+    }
+    var radios = document.getElementsByName("func");
+    for (var i = 0; i < radios.length; i += 1) {
+      radios[i].onchange = function (e) {
+        draw(e.target.value);
       };
     }
+  }
 
-    function serializeObject(obj) {
-      if (!obj.toJSON) return null;
-      return obj.toJSON();
-    }
-    function unserializeObject(str) {
-      const data = typeof str === "string" ? JSON.parse(str) : str;
-      const [type, clazz] = data.className.split(".");
-      const instance = AMap[clazz].unserialize(JSON.stringify(data));
-      instance._last_amap_id = data._amap_id;
-      return instance;
+  //#region 圆圈附属元素相关
+  function updateCircleAttachment(
+    { obj, type },
+    radiusEndLngLat,
+    force = false,
+    originEvent = null
+  ) {
+    const ext = obj.getExtData() || {};
+    if (!force && ext.drawing) return;
+    if (!radiusEndLngLat) {
+      // 如果没有 radiusEndLngLat 说明是平移
+      // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
+      const curLnglat = originEvent.lnglat;
+      const center = obj.getCenter();
+      const raidus = obj.getRadius();
+      // 计算鼠标位置与圆心的经纬度差值
+      const dLng = curLnglat.getLng() - center.getLng();
+      const dLat = curLnglat.getLat() - center.getLat();
+      // 使用反正切函数计算角度（弧度）
+      const angle = Math.atan2(dLat, dLng); // 弧度
+      radiusEndLngLat = center.offset(
+        Math.cos(angle) * raidus,
+        Math.sin(angle) * raidus
+      );
     }
 
-    //#endregion
+    const newCenter = obj.getCenter();
+
+    // 修正圆心点
+    ext.centerMarker.setPosition(newCenter);
+
+    // 半径线
+    ext.radiusMarker.setPath([newCenter, radiusEndLngLat]);
+
+    // 半径远端标点
+    ext.radiusLineEndMarker.setPosition(radiusEndLngLat);
+
+    // 半径长度
+    ext.radiusTextMarker.setPosition(
+      new AMap.LngLat(
+        (ext.radiusMarker.getPath()[0].getLng() +
+          ext.radiusMarker.getPath()[1].getLng()) /
+          2,
+        (ext.radiusMarker.getPath()[0].getLat() +
+          ext.radiusMarker.getPath()[1].getLat()) /
+          2
+      )
+    );
+    ext.radiusTextMarker.setText(
+      AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
+        "公里"
+    );
+  }
+  function handleCircleDragging(event) {
+    updateCircleAttachment(
+      { obj: event.target, type: event.type },
+      undefined,
+      false,
+      event
+    );
+  }
+  //#endregion 圆圈附属元素相关
+
+  setTimeout(() => {
+    initMouseTool();
+  }, 1000);
+  //#endregion 工具面板
+
+  //#region 撤销功能
+  // 添加键盘事件监听，实现撤销功能
+  document.addEventListener("keydown", function (e) {
+    // 检测是否按下Ctrl/Cmd+Z
+    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+      e.preventDefault(); // 阻止浏览器默认的撤销行为
+      if (overlays.length > 0) {
+        // 移除最后一个覆盖物
+        var lastOverlay = overlays.pop();
+        themap.remove([
+          lastOverlay,
+          ...Object.values(lastOverlay.getExtData()),
+        ]);
+      }
+    }
   });
-})();
+  //#endregion 撤销功能
+
+  //#region 自动保存 自动加载
+  setTimeout(() => {
+    document.querySelector('[name="autosave"]').checked && initLatestAutosave();
+  }, 1000);
+  function initLatestAutosave() {
+    if (!localStorage.getItem(SAVE_DATA_STORAGE_KEY)) return;
+    const data = JSON.parse(localStorage.getItem(SAVE_DATA_STORAGE_KEY));
+    if (!Array.isArray(data)) {
+      // 数据有问题
+      localStorage.removeItem(SAVE_DATA_STORAGE_KEY);
+      return;
+    }
+    if (data.length === 0) return;
+    console.info(`上次数据`, data);
+    const lays = data.map(unserializeObject).filter((e) => e);
+    themap.add(lays);
+    overlays.push(...lays);
+
+    //#region 处理 circle 附属元素
+    const mapper = Object.fromEntries(
+      overlays
+        .filter((e) => e._last_amap_id)
+        .map((lay) => [lay._last_amap_id, lay])
+    );
+    lays
+      .filter((lay) => lay.className === "Overlay.Circle")
+      .map((item) => {
+        const opts = item.getOptions();
+        for (const key in opts.extData) {
+          if (Object.prototype.hasOwnProperty.call(opts.extData, key)) {
+            // 复原绑定关系，半径、中心点、圆周点、半径长度
+            const element = opts.extData[key];
+            if (element instanceof Object && "_amap_id" in element) {
+              const last_amap_id = element._amap_id;
+              const lay = mapper[last_amap_id];
+              opts.extData[key] = lay;
+            }
+          }
+        }
+        return item;
+      })
+      .map((obj) => {
+        // 绑定 circle 附属元素事件
+        if (!obj.hasEvents("dragging", handleCircleDragging))
+          obj.on("dragging", handleCircleDragging);
+      });
+
+    //#endregion 处理 circle 附属元素
+
+    toast("已自动加载上次保存的标记");
+    lockOverlays();
+    toast("已经自动锁定所有元素");
+  }
+
+  // 自动记忆所有 overlays
+  window.addEventListener("beforeunload", (e) => {
+    e.preventDefault();
+    e.returnValue = "";
+  });
+
+  const SAVE_DATA_STORAGE_KEY = "SAVE_DATA_STORAGE_KEY";
+  window.addEventListener("beforeunload", (e) => {
+    const allUserOverlays = themap.getAllOverlays().filter((e) => {
+      return !initalOverlayIds.includes(e._amap_id);
+    });
+    if (!document.querySelector('[name="autosave"]').checked) return;
+    // 所有overlays转成json保存
+    const saveData = allUserOverlays.map(serializeObject).filter((e) => e);
+    localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
+  });
+
+  //#endregion 自动保存 自动加载
+
+  //#region AMap 对象序列化
+  hackAMapObjectSerialize();
+  function hackAMapObjectSerialize() {
+    function serializeCommon(unsavedKeys = ["extData", "map"]) {
+      const opt = this.getOptions();
+      const saveData = Object.fromEntries(
+        Object.entries(opt).filter(([k, v]) => !unsavedKeys.includes(k))
+      );
+      const serializedData = {
+        className: this.className,
+        _amap_id: this._amap_id,
+        options: JSON.parse(JSON.stringify(saveData)),
+      };
+      return serializedData;
+    }
+
+    AMap.Text.prototype.toJSON = function () {
+      this.setOptions({ position: this.getPosition() });
+      const unsavedKeys = ["extData", "map", "content"];
+      return serializeCommon.bind(this)(unsavedKeys);
+    };
+    AMap.Text.unserialize = (str) => new AMap.Text(JSON.parse(str).options);
+
+    AMap.Circle.prototype.toJSON = function () {
+      this.setOptions({ center: this.getCenter() });
+      const data = serializeCommon.bind(this)();
+      data.options.extData = JSON.parse(JSON.stringify(this.getExtData()));
+      return data;
+    };
+    AMap.Circle.unserialize = (str) => new AMap.Circle(JSON.parse(str).options);
+
+    AMap.Marker.prototype.toJSON = function () {
+      this.setOptions({ position: this.getPosition() });
+      return serializeCommon.bind(this)();
+    };
+    AMap.Marker.unserialize = (str) => new AMap.Marker(JSON.parse(str).options);
+
+    AMap.Polyline.prototype.toJSON = function () {
+      this.setOptions({ path: this.getPath() });
+      return serializeCommon.bind(this)();
+    };
+    AMap.Polyline.unserialize = (str) =>
+      new AMap.Polyline(JSON.parse(str).options);
+
+    AMap.Polygon.prototype.toJSON = function () {
+      this.setOptions({ path: this.getPath() });
+      return serializeCommon.bind(this)();
+    };
+    AMap.Polygon.unserialize = (str) =>
+      new AMap.Polygon(JSON.parse(str).options);
+
+    AMap.Rectangle.prototype.toJSON = function () {
+      this.setOptions({ bounds: this.getBounds() });
+      return serializeCommon.bind(this)();
+    };
+    AMap.Rectangle.unserialize = (str) => {
+      const opts = JSON.parse(str).options;
+      return new AMap.Rectangle({
+        ...opts,
+        bounds: new AMap.Bounds(
+          opts.bounds.slice(0, 2),
+          opts.bounds.slice(2, 4)
+        ),
+      });
+    };
+  }
+
+  function serializeObject(obj) {
+    if (!obj.toJSON) return null;
+    return obj.toJSON();
+  }
+  function unserializeObject(str) {
+    const data = typeof str === "string" ? JSON.parse(str) : str;
+    const [type, clazz] = data.className.split(".");
+    const instance = AMap[clazz].unserialize(JSON.stringify(data));
+    instance._last_amap_id = data._amap_id;
+    return instance;
+  }
+
+  //#endregion
+});
