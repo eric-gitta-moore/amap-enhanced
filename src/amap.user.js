@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @namespace       https://github.com/eric-gitta-moore/amap-enhanced
-// @version         2025.02.18.2
+// @version         2025.02.18.3
 // @description     高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @author          https://eric-gitta-moore.github.io/
 // @match           https://www.amap.com/*
@@ -876,7 +876,6 @@ function setupMouseToolEvents() {
       case "polyline": {
         themap._mouseTool.polyline({
           draggable: getLockState(),
-          strokeColor: "#80d8ff",
           isOutline: true,
           //同Polyline的Option设置
         });
@@ -884,9 +883,7 @@ function setupMouseToolEvents() {
       }
       case "polygon": {
         themap._mouseTool.polygon({
-          fillColor: "#00b0ff",
           draggable: getLockState(),
-          strokeColor: "#80d8ff",
           bubble: true,
           //同Polygon的Option设置
         });
@@ -894,9 +891,7 @@ function setupMouseToolEvents() {
       }
       case "rectangle": {
         themap._mouseTool.rectangle({
-          fillColor: "#00b0ff",
           draggable: getLockState(),
-          strokeColor: "#80d8ff",
           bubble: true,
           //同Polygon的Option设置
         });
@@ -915,8 +910,6 @@ function setupMouseToolEvents() {
       }
       case "area": {
         themap._mouseTool.measureArea({
-          fillColor: "#00b0ff",
-          strokeColor: "#80d8ff",
           bubble: true,
           draggable: getLockState(),
           //同Circle的Option设置
