@@ -501,7 +501,7 @@
     const initalOverlayIds = window.themap
       .getAllOverlays()
       .map((e) => e._amap_id);
-    const overlays = (window.overlays = []);
+    var overlays = (window.overlays = []);
 
     //#region 工具面板
 
@@ -736,16 +736,24 @@
     //#region 工具控制面板事件
     document.getElementById("clear").onclick = function () {
       window.themap.remove(overlays);
-      overlays = [];
+      overlays.splice(0, overlays.length);
     };
     document.getElementById("close").onclick = function () {
-      mouseTool.close(false);
+      window.mouseTool.close(false);
+      var radios = document.getElementsByName("func");
       for (var i = 0; i < radios.length; i += 1) {
         radios[i].checked = false;
       }
     };
     document.getElementById("lock").onclick = function (e) {
       toast(`已经${lockOverlays()}`);
+    };
+    document.getElementById("hide-lays").onclick = function (e) {
+      const nextState = e.target.value;
+      const hide = nextState === "隐藏";
+      if (hide) window.overlays.map((e) => e.hide());
+      else window.overlays.map((e) => e.show());
+      e.target.value = hide ? "显示" : "隐藏";
     };
     //#endregion 工具控制面板事件
 
@@ -814,6 +822,12 @@
               radiusLineEndMarker,
               radiusTextMarker,
             ]);
+            window.overlays.push(
+              centerMarker,
+              radiusMarker,
+              radiusLineEndMarker,
+              radiusTextMarker
+            );
 
             if (!obj.hasEvents("dragging", handleCircleDragging))
               obj.on("dragging", handleCircleDragging);
