@@ -397,6 +397,16 @@
   // );
   //#endregion
 
+  //#region toast
+  function toast(text, options) {
+    Toastify({
+      text,
+      position: "center",
+      ...options,
+    }).showToast();
+  }
+  //#endregion toast
+
   //#region 鼠标数据
   window.cursorData = {
     lnglat: null,
@@ -480,11 +490,11 @@
   //#region 鼠标工具-绘制覆盖物
   window.addEventListener("load", () => {
     injectScript(
-      "https://cdnjs.cloudflare.com/ajax/libs/layer/3.5.1/layer.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.js",
       true
     );
     injectCSS(
-      "https://cdnjs.cloudflare.com/ajax/libs/layer/3.5.1/theme/default/layer.min.css",
+      "https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css",
       true
     );
 
@@ -702,70 +712,108 @@
       .getAllOverlays()
       .map((e) => e._amap_id);
     const overlays = (window.overlays = []);
+
+    //#region 圆圈附属元素相关
+    function updateCircleAttachment(
+      { obj, type },
+      radiusEndLngLat,
+      force = false,
+      originEvent = null
+    ) {
+      const ext = obj.getExtData() || {};
+      if (!force && ext.drawing) return;
+      if (!radiusEndLngLat) {
+        // 如果没有 radiusEndLngLat 说明是平移
+        // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
+        const curLnglat = originEvent.lnglat;
+        const center = obj.getCenter();
+        const raidus = obj.getRadius();
+        // 计算鼠标位置与圆心的经纬度差值
+        const dLng = curLnglat.getLng() - center.getLng();
+        const dLat = curLnglat.getLat() - center.getLat();
+        // 使用反正切函数计算角度（弧度）
+        const angle = Math.atan2(dLat, dLng); // 弧度
+        radiusEndLngLat = center.offset(
+          Math.cos(angle) * raidus,
+          Math.sin(angle) * raidus
+        );
+      }
+
+      const newCenter = obj.getCenter();
+
+      // 修正圆心点
+      ext.centerMarker.setPosition(newCenter);
+
+      // 半径线
+      ext.radiusMarker.setPath([newCenter, radiusEndLngLat]);
+
+      // 半径远端标点
+      ext.radiusLineEndMarker.setPosition(radiusEndLngLat);
+
+      // 半径长度
+      ext.radiusTextMarker.setPosition(
+        new AMap.LngLat(
+          (ext.radiusMarker.getPath()[0].getLng() +
+            ext.radiusMarker.getPath()[1].getLng()) /
+            2,
+          (ext.radiusMarker.getPath()[0].getLat() +
+            ext.radiusMarker.getPath()[1].getLat()) /
+            2
+        )
+      );
+      ext.radiusTextMarker.setText(
+        AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
+          "公里"
+      );
+    }
+    function handleCircleDragging(event) {
+      updateCircleAttachment(
+        { obj: event.target, type: event.type },
+        undefined,
+        false,
+        event
+      );
+    }
+    //#endregion 圆圈附属元素相关
+
+    // 添加键盘事件监听，实现撤销功能
+    document.addEventListener("keydown", function (e) {
+      // 检测是否按下Ctrl/Cmd+Z
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault(); // 阻止浏览器默认的撤销行为
+        if (overlays.length > 0) {
+          // 移除最后一个覆盖物
+          var lastOverlay = overlays.pop();
+          window.themap.remove([
+            lastOverlay,
+            ...Object.values(lastOverlay.getExtData()),
+          ]);
+        }
+      }
+    });
+
+    function getLockState() {
+      const lockDom = document.getElementById("lock");
+      const nextState = lockDom.value;
+      return nextState === "锁定";
+    }
+    function lockOverlays() {
+      const lockDom = document.getElementById("lock");
+      const nextState = lockDom.value;
+      const locked = nextState === "锁定";
+      overlays.map((item) => {
+        item.setOptions({
+          draggable: locked ? false : true,
+        });
+      });
+      lockDom.value = locked ? "解锁" : "锁定";
+      return nextState;
+    }
+
     function initMouseTool() {
       var mouseTool = new AMap.MouseTool(window.themap);
       window.mouseTool = mouseTool;
 
-      function updateCircleAttachment(
-        { obj, type },
-        radiusEndLngLat,
-        force = false,
-        originEvent = null
-      ) {
-        const ext = obj.getExtData() || {};
-        if (!force && ext.drawing) return;
-        if (!radiusEndLngLat) {
-          // 如果没有 radiusEndLngLat 说明是平移
-          // 按照鼠标所在位置连接圆心做射线，交于圆周与 N 点，N 点即为 radiusEndLngLat
-          const curLnglat = originEvent.lnglat;
-          const center = obj.getCenter();
-          const raidus = obj.getRadius();
-          // 计算鼠标位置与圆心的经纬度差值
-          const dLng = curLnglat.getLng() - center.getLng();
-          const dLat = curLnglat.getLat() - center.getLat();
-          // 使用反正切函数计算角度（弧度）
-          const angle = Math.atan2(dLat, dLng); // 弧度
-          radiusEndLngLat = center.offset(
-            Math.cos(angle) * raidus,
-            Math.sin(angle) * raidus
-          );
-        }
-
-        const newCenter = obj.getCenter();
-
-        // 修正圆心点
-        ext.centerMarker.setPosition(newCenter);
-
-        // 半径线
-        ext.radiusMarker.setPath([newCenter, radiusEndLngLat]);
-
-        // 半径远端标点
-        ext.radiusLineEndMarker.setPosition(radiusEndLngLat);
-
-        // 半径长度
-        ext.radiusTextMarker.setPosition(
-          new AMap.LngLat(
-            (ext.radiusMarker.getPath()[0].getLng() +
-              ext.radiusMarker.getPath()[1].getLng()) /
-              2,
-            (ext.radiusMarker.getPath()[0].getLat() +
-              ext.radiusMarker.getPath()[1].getLat()) /
-              2
-          )
-        );
-        ext.radiusTextMarker.setText(
-          AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
-            "公里"
-        );
-      }
-      function handleCircleDragging(event) {
-        updateCircleAttachment(
-          { obj: event.target, type: event.type },
-          undefined,
-          false,
-          event
-        );
-      }
       //监听draw事件可获取画好的覆盖物
       mouseTool.on("drawing", ({ obj, type }) => {
         const ext = obj.getExtData() || {};
@@ -845,33 +893,18 @@
         overlays.push(obj);
       });
 
-      // 添加键盘事件监听，实现撤销功能
-      document.addEventListener("keydown", function (e) {
-        // 检测是否按下Ctrl/Cmd+Z
-        if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-          e.preventDefault(); // 阻止浏览器默认的撤销行为
-          if (overlays.length > 0) {
-            // 移除最后一个覆盖物
-            var lastOverlay = overlays.pop();
-            window.themap.remove([
-              lastOverlay,
-              ...Object.values(lastOverlay.getExtData()),
-            ]);
-          }
-        }
-      });
       function draw(type) {
         switch (type) {
           case "marker": {
             mouseTool.marker({
-              draggable: true,
+              draggable: getLockState(),
               //同Marker的Option设置
             });
             break;
           }
           case "polyline": {
             mouseTool.polyline({
-              draggable: true,
+              draggable: getLockState(),
               strokeColor: "#80d8ff",
               //同Polyline的Option设置
             });
@@ -880,7 +913,7 @@
           case "polygon": {
             mouseTool.polygon({
               fillColor: "#00b0ff",
-              draggable: true,
+              draggable: getLockState(),
               strokeColor: "#80d8ff",
               bubble: true,
               //同Polygon的Option设置
@@ -890,7 +923,7 @@
           case "rectangle": {
             mouseTool.rectangle({
               fillColor: "#00b0ff",
-              draggable: true,
+              draggable: getLockState(),
               strokeColor: "#80d8ff",
               bubble: true,
               //同Polygon的Option设置
@@ -902,7 +935,7 @@
               strokeColor: "red",
               strokeStyle: "dashed",
               fillOpacity: 0,
-              draggable: true,
+              draggable: getLockState(),
               bubble: true,
               //同Circle的Option设置
             });
@@ -913,7 +946,7 @@
               fillColor: "#00b0ff",
               strokeColor: "#80d8ff",
               bubble: true,
-              draggable: true,
+              draggable: getLockState(),
               //同Circle的Option设置
             });
             break;
@@ -939,20 +972,25 @@
         }
       };
       document.getElementById("lock").onclick = function (e) {
-        const locked = e.target.value === "锁定";
-        overlays.map((item) => {
-          item.setOptions({
-            draggable: locked ? false : true,
-          });
-        });
-        e.target.value = locked ? "解锁" : "锁定";
-        layer.msg(`已经${locked ? "锁定" : "解锁"}`, {
-          icon: 1,
-          offset: "16px",
-        });
+        toast(`已经${lockOverlays()}`);
       };
     }
-    function initLatestAutosave() {}
+    function initLatestAutosave() {
+      if (!localStorage.getItem(SAVE_DATA_STORAGE_KEY)) return;
+      const data = JSON.parse(localStorage.getItem(SAVE_DATA_STORAGE_KEY));
+      if (!Array.isArray(data)) {
+        // 数据有问题
+        localStorage.removeItem(SAVE_DATA_STORAGE_KEY);
+        return;
+      }
+      console.info(`上次数据`, data);
+      const lays = data.map(unserializeObject).filter((e) => e);
+      window.themap.add(lays);
+      window.overlays.push(...lays);
+      toast("已自动加载上次保存的标记");
+      lockOverlays();
+      toast("已经自动锁定所有元素");
+    }
 
     // 自动记忆所有 overlays
     window.addEventListener("beforeunload", (e) => {
@@ -967,7 +1005,7 @@
       });
       // 所有overlays转成geojson保存
       const saveData = allUserOverlays
-        .map((e) => e.serialize?.())
+        .map(serializeObject)
         .filter((e) => e)
         .map((e) => JSON.parse(e));
       localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
@@ -1026,12 +1064,12 @@
       return obj.serialize();
     }
     function unserializeObject(str) {
-      const data = JSON.parse(str);
+      const data = typeof str === "string" ? JSON.parse(str) : str;
       switch (data.className) {
         case "AMap.Text":
-          return AMap.Text.unserialize(str);
+          return AMap.Text.unserialize(JSON.stringify(data));
         case "Overlay.Circle":
-          return AMap.Circle.unserialize(str);
+          return AMap.Circle.unserialize(JSON.stringify(data));
       }
       return null;
     }
