@@ -1585,18 +1585,18 @@ function setupRidingRouteEnhance() {
     const dirnew = amap.directionnew;
     themap.plugin(["AMap.Riding"], function () {
       //加载步行导航插件
-      mwalk = new AMap.Riding({
+      currentRidingRoute = new AMap.Riding({
         map: themap,
         panel: jQuery("#planList").get(0),
       }); //构造步行导航类
-      AMap.Event.addListener(mwalk, "complete", function () {
+      AMap.Event.addListener(currentRidingRoute, "complete", function () {
         toast("骑行导航规划成功");
         jQuery(".line-search-submit").removeClass("butLoading");
         jQuery(".line-search-clear").removeClass("none");
         jQuery("#planList").css("display", "block");
       }); //返回导航查询结果
       //根据起、终点坐标规划步行路线
-      mwalk.search(
+      currentRidingRoute.search(
         new AMap.LngLat(...dirnew.from.lnglat.split(",")),
         new AMap.LngLat(...dirnew.to.lnglat.split(","))
       );
