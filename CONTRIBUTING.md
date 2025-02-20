@@ -13,6 +13,13 @@ cd amap-enhanced
 2. 安装 Tampermonkey 浏览器扩展
 3. 在 Tampermonkey 中创建新脚本，将 `src/amap.js` 的内容复制进去
 
+## 文档
+```js
+// @docs            https://lbs.amap.com/api/javascript-api-v2/summary
+// @docs            https://a.amap.com/jsapi/static/doc/20210906/index.html
+// @docs            https://www.tampermonkey.net/documentation.php
+```
+
 ## 开发规范
 
 ### 代码风格
