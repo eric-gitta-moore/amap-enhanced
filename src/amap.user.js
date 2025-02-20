@@ -128,7 +128,7 @@ function setupInjectCSS() {
     );
     GM_addStyle(
       `
-  .app_download_box, .amap-common-download-panel, .amap-copyright {
+  .app_download_box, .amap-common-download-panel, .amap-copyright, .dir_qr {
       display: none !important;
   }
   .input-item {
