@@ -54,21 +54,8 @@
 - 点击地点的收藏按钮添加到收藏夹
 - 在收藏列表中可以添加图片和备注
 - 支持将重要的收藏点置顶显示
-- **管理收藏**需要前往高德地图 APP 操作
+- [增加修改收藏地点 or 图片](#收藏显示)
 
-<table>
-  <thead>
-    <tr>
-      <th align=center colspan=2><b>管理收藏</b>需要前往高德地图 APP 操作</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><img style="width: 300px;" src="https://github.com/user-attachments/assets/156b45ea-bde6-4a7c-9d69-4d43a27a461a" /></td>
-      <td><img style="width: 300px;" src="https://github.com/user-attachments/assets/58033b34-1d2e-4328-9075-3afa4bb32613" /></td>
-    </tr>
-  </tbody>
-</table>
 
 ## 数据存储
 - 使用浏览器本地存储 (localStorage) 存储收藏数据，key 为 `SAVE_DATA_STORAGE_KEY`
@@ -98,3 +85,20 @@
     }
 }
 ```
+
+### 收藏显示
+> **管理收藏**需要前往高德地图 APP 操作
+
+<table>
+  <thead>
+    <tr>
+      <th align=center colspan=2><b>管理收藏</b>需要前往高德地图 APP 操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img style="width: 300px;" src="https://github.com/user-attachments/assets/156b45ea-bde6-4a7c-9d69-4d43a27a461a" /></td>
+      <td><img style="width: 300px;" src="https://github.com/user-attachments/assets/58033b34-1d2e-4328-9075-3afa4bb32613" /></td>
+    </tr>
+  </tbody>
+</table>
