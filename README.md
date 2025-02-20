@@ -103,7 +103,7 @@
 <table>
   <thead>
     <tr>
-      <th align=center colspan=2><b>管理收藏</b>需要前往高德地图 APP 操作</th>
+      <th align=center colspan=2><b>管理收藏</b></th>
     </tr>
   </thead>
   <tbody>
