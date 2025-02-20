@@ -1272,9 +1272,10 @@ window.addEventListener("load", () => {
 
 // 自动记忆所有 overlays
 function saveAllOverlays() {
-  const allUserOverlays = themap.getAllOverlays().filter((e) => {
-    return !initalOverlayIds.includes(e._amap_id);
-  });
+  // const allUserOverlays = themap.getAllOverlays().filter((e) => {
+  //   return !initalOverlayIds.includes(e._amap_id);
+  // });
+  const allUserOverlays = overlays;
   if (!document.querySelector('[name="autosave"]').checked) return;
   // 所有overlays转成json保存
   const saveData = allUserOverlays.map(serializeObject).filter((e) => e);
