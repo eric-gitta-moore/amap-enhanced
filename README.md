@@ -23,7 +23,7 @@
 
 ## 安装方法
 
-1. 安装 Tampermonkey 浏览器扩展
+1. 安装 [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey-beta/gcalenpjmijncebpfijmoaglllgpjagf) 浏览器扩展
 2. 点击 「[🚀立即体验](https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.user.js)」
 3. 安装即可
 4. 打开 [高德地图](https://www.amap.com/)，即可看到增强功能
