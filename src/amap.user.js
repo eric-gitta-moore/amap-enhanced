@@ -1486,7 +1486,7 @@ function setupRidingRouteUI() {
     isRiding && jQuery("#planList").addClass("riding-plan");
 
     jQuery("#planForm .dir_tab").on("click", function () {
-      jQuery("#planList").remove("riding-plan");
+      jQuery("#planList").removeClass("riding-plan");
     });
     jQuery(dirbox).on("click", "#ridingTab", function () {
       jQuery(".dir_submit").text("骑车去");
