@@ -13,7 +13,7 @@
   <tbody>
     <tr>
       <td><img src="https://github.com/user-attachments/assets/0056a13c-d3b2-4cd5-93a4-9fa53025da0a" /></td>
-      <td><img src="https://github.com/user-attachments/assets/c5124d46-da3a-45bb-8c6c-4854887c57ec" /></td>
+      <td><img src="https://github.com/user-attachments/assets/96924455-9af8-413b-a811-e1065229dc11" /></td>
     </tr>
   </tbody>
 </table>
