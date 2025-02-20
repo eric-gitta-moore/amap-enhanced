@@ -21,12 +21,55 @@
 // @docs            https://www.tampermonkey.net/documentation.php
 
 //#region globalVar
-const initalOverlayIds = [];
-const overlays = [];
 const SAVE_DATA_STORAGE_KEY = "SAVE_DATA_STORAGE_KEY";
+const initalOverlayIds = [];
+
+const _internal_overlays = [];
+// 每个overlay添加或删除时，会触发这个回调重新绑定右键事件，辅助右键删除功能。
+// 也可以用 OverlayGroup，但是这个也得监听添加事件才行
+const overlaysCallback = [];
+const overlays = createArrayProxy(_internal_overlays, () => {
+  overlaysCallback.forEach((callback) => {
+    callback();
+  });
+});
+const overlayGroup = null;
 //#endregion globalVar
 
 //#region utils
+function createArrayProxy(array, onChange) {
+  return new Proxy(array, {
+    // 监听数组属性读取
+    get(target, property, receiver) {
+      // 返回数组方法的代理
+      const value = Reflect.get(target, property, receiver);
+      if (
+        typeof value === "function" &&
+        ["push", "pop", "shift", "unshift", "splice"].includes(property)
+      ) {
+        // 触发变更回调
+        onChange();
+      }
+      return value;
+    },
+
+    // 监听数组属性设置
+    set(target, property, value, receiver) {
+      Reflect.set(target, property, value, receiver);
+      // 触发变更回调
+      onChange();
+      return true;
+    },
+
+    // 监听删除操作
+    deleteProperty(target, property) {
+      delete target[property];
+      // 触发变更回调
+      onChange();
+      return true;
+    },
+  });
+}
 function setupUtils() {
   function parseDom(str) {
     return Document.parseHTMLUnsafe(str).body.childNodes[0];
@@ -603,7 +646,10 @@ function setupTemplate() {
         <i class="iconfont icon-clearmap"></i><span>清除路线</span>
     </li>
     <li class="menu_item" id="menuClearmap">
-        <span class="border-t">清除地图</span>
+        <i class="iconfont icon-clearmap"></i><span>清除地图</span>
+    </li>
+    <li class="menu_item" id="menuClearMarker">
+        <i class="iconfont icon-clearmap"></i><span>清除标记物</span>
     </li>
 </ul>
 `;
@@ -1212,7 +1258,7 @@ function initLatestAutosave() {
 
   //#endregion 处理 circle 附属元素
 
-  toast("已自动加载上次保存的标记");
+  toast(`已自动加载上次保存的标记，共 ${overlays.length} 个`);
   lockOverlays();
   toast("已经自动锁定所有元素");
 }
@@ -1242,3 +1288,76 @@ window.addEventListener("beforeunload", (e) => {
 //#endregion 自动保存 自动加载
 
 //#endregion MouseTool 工具相关
+
+//#region 右键菜单增强 - 删除元素
+function setupContextMenuEnhance() {
+  let lastClickOverlayEvent = null;
+  const rightclickCallback = (e) => (lastClickOverlayEvent = e);
+  function reapplyRightclickEvent() {
+    console.log("reapplyRightclickEvent");
+    overlays.map((lay) => {
+      if (!lay.hasEvents("rightclick", rightclickCallback))
+        lay.on("rightclick", rightclickCallback);
+    });
+  }
+  overlaysCallback.push(reapplyRightclickEvent);
+
+  function patchRightclickEvent() {
+    function checkPropagationScope(event, selector) {
+      const e = event;
+      let cursor = e.target;
+      while (cursor !== e.currentTarget) {
+        if (cursor === document.querySelector(selector)) return true;
+        cursor = cursor.parentNode;
+      }
+      return false;
+    }
+    document.getElementById("themap").addEventListener(
+      "click",
+      (e) => {
+        if (!checkPropagationScope(e, "#menuClearMarker")) return;
+        const menuDom = document.querySelector(".amap-menu");
+        const menuRect = menuDom.getBoundingClientRect();
+        const menuPixel = new AMap.Pixel(menuRect.x, menuRect.y);
+
+        // 误差，四舍五入
+        if (!menuPixel.round().equals(lastClickOverlayEvent.pixel.round()))
+          return;
+
+        const curLay = lastClickOverlayEvent.target;
+        curLay.remove();
+        toast(`删除 ${curLay.className} 成功`);
+        const idx = overlays.findIndex((e) => e === curLay);
+        if (idx === -1) return;
+        overlays.splice(idx, 1);
+      },
+      { capture: true }
+    );
+  }
+  return {
+    reapplyRightclickEvent,
+    patchRightclickEvent,
+  };
+}
+const { patchRightclickEvent } = setupContextMenuEnhance();
+window.addEventListener("load", () => {
+  patchRightclickEvent();
+});
+//#endregion 右键菜单增强 - 删除元素
+
+//#region 元素删除逻辑补充
+function patchElementRemoveLogic() {
+  const originRemove = AMap.Circle.prototype.remove;
+  AMap.Circle.prototype.remove = function () {
+    const ext = this.getExtData();
+    if (!ext || typeof ext !== "object") return originRemove();
+    Object.entries(ext).map(([key, value]) => {
+      value.remove?.();
+    });
+    return originRemove.call(this);
+  };
+}
+window.addEventListener("load", () => {
+  patchElementRemoveLogic();
+});
+//#endregion 元素删除逻辑补充
