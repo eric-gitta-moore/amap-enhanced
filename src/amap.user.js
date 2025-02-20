@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @namespace       https://github.com/eric-gitta-moore/amap-enhanced
-// @version         2025.02.20.0
+// @version         2025.02.21.0
 // @description     高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @author          https://eric-gitta-moore.github.io/
 // @match           https://www.amap.com/*
@@ -13,6 +13,7 @@
 // @require         https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js
 // @require         https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.8/umd/popper.min.js
 // @require         https://unpkg.com/lucide@0.475.0/dist/umd/lucide.min.js
+// @require         https://unpkg.com/watchjs@0.0.0/src/watch.min.js
 // @resource        toastify.min.css https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css
 // @resource        viewer.min.css https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css
 // @downloadURL     https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.user.js
@@ -26,6 +27,8 @@
 //#region globalVar
 const SAVE_DATA_STORAGE_KEY = "SAVE_DATA_STORAGE_KEY";
 const initalOverlayIds = [];
+// 骑行导航对象
+let currentRidingRoute = null;
 
 const _internal_overlays = [];
 // 每个overlay添加或删除时，会触发这个回调重新绑定右键事件，辅助右键删除功能。
@@ -141,6 +144,12 @@ function setupInjectCSS() {
       align-items: center;
       width: 100%;
       height: 3rem;
+  }
+  .input-item.tool-btn {
+      gap: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      height: auto;
   }
   
   .input-item:last-child {
@@ -674,7 +683,7 @@ function setupTemplate() {
           <input type="radio" name='func' value='circle'><span class="input-text">画圆</span>
           <input type="radio" name='func' value='area'><span class="input-text">测面积</span>
       </div>
-      <div class="input-item" style="gap: 10px;">
+      <div class="input-item tool-btn">
           <input id="hide-lays" type="button" class="btn" value="隐藏" />
           <input id="clear" type="button" class="btn" value="清除" />
           <input id="lock" type="button" class="btn" value="锁定" />
@@ -1427,35 +1436,57 @@ function setupRidingRouteUI() {
   align-items: center;
   margin: auto;
 }
-
+.riding-plan .plan dt.start {
+  line-height: 25px;
+}
+.riding-plan .plan dt.end {
+  line-height: 25px;
+}
+.riding-plan .plan-nobus dt {
+  height: 25px;
+}
+.line-search-clear {
+  display: inline !important;
+}
 `);
   const ridingUI = `
 <li> <a id="ridingTab" class="palntype_tab icondirtip" href="javascript:void(0)" data-type="riding"><i data-lucide="bike"></i></a> </li>
 `;
 
-  function injectUI() {
-    if (document.querySelector("#ridingTab")) return;
-    const panel = document.querySelector("#planForm");
-    const tabs = panel.querySelector("#trafficTab");
-    tabs.appendChild(parseDom(ridingUI));
-    refreshLucideIcons();
-    return !!tabs;
-  }
-  const dirbox = document.querySelector("#dirbox");
-  new MutationObserver((mutations, observer) => {
-    setTimeout(() => {
-      if (injectUI()) {
-        observer.disconnect();
-      }
-    }, 0);
-  }).observe(dirbox, {
-    childList: true,
-    subtree: true,
+  addEventListener("DOMContentLoaded", () => {
+    function injectUI() {
+      if (document.querySelector("#ridingTab")) return;
+      const panel = document.querySelector("#planForm");
+      const tabs = panel.querySelector("#trafficTab");
+      tabs.appendChild(parseDom(ridingUI));
+      refreshLucideIcons();
+      return !!tabs;
+    }
+    const dirbox = document.querySelector("#dirbox");
+    // 执行时机不能错，否则 MutationObserver 监听不到
+    new MutationObserver((mutations, observer) => {
+      setTimeout(() => {
+        if (injectUI()) {
+          observer.disconnect();
+        }
+      }, 0);
+    }).observe(dirbox, {
+      childList: true,
+      subtree: true,
+    });
   });
 
-  window.addEventListener("load", () => {
+  addEventListener("load", () => {
+    const isRiding = jQuery("#ridingTab").hasClass("current");
+    isRiding && jQuery("#planList").addClass("riding-plan");
+
+    jQuery("#planForm .dir_tab").on("click", function () {
+      jQuery("#planList").remove("riding-plan");
+    });
     jQuery(dirbox).on("click", "#ridingTab", function () {
       jQuery(".dir_submit").text("骑车去");
+      // 修复路线规划面板的 css 需要
+      jQuery("#planList").addClass("riding-plan");
     });
   });
 }
@@ -1542,30 +1573,53 @@ function setupRidingRouteUI() {
  * 》》》》》》》》》》》》算了玛德，很多要插入到他们的 js 里面 hack 才行，还不如直接自己搞一个《《《《《《《《《《《《
  */
 function setupRidingRouteEnhance() {
-  return;
-  //骑行导航
-  var riding = new AMap.Riding({
-    map: map,
-    panel: "planList",
-  });
-  //根据起终点坐标规划骑行路线
-  riding.search(
-    [116.397933, 39.844818],
-    [116.440655, 39.878694],
-    function (status, result) {
-      // result即是对应的骑行路线数据信息，相关数据结构文档请参考  https://lbs.amap.com/api/javascript-api/reference/route-search#m_RidingResult
-      if (status === "complete") {
-        toast("绘制骑行路线完成");
-      } else {
-        toast("骑行路线数据查询失败");
-        console.warn(`骑行路线数据查询失败`, result);
-      }
+  // 全局变量
+  currentRidingRoute = null;
+  const execRoute = () => {
+    const isRiding = jQuery("#ridingTab").hasClass("current");
+    if (!isRiding) return;
+    if (currentRidingRoute) {
+      currentRidingRoute.clear();
+      currentRidingRoute = null;
     }
+    const dirnew = amap.directionnew;
+    themap.plugin(["AMap.Riding"], function () {
+      //加载步行导航插件
+      mwalk = new AMap.Riding({
+        map: themap,
+        panel: jQuery("#planList").get(0),
+      }); //构造步行导航类
+      AMap.Event.addListener(mwalk, "complete", function () {
+        toast("骑行导航规划成功");
+        jQuery(".line-search-submit").removeClass("butLoading");
+        jQuery(".line-search-clear").removeClass("none");
+        jQuery("#planList").css("display", "block");
+      }); //返回导航查询结果
+      //根据起、终点坐标规划步行路线
+      mwalk.search(
+        new AMap.LngLat(...dirnew.from.lnglat.split(",")),
+        new AMap.LngLat(...dirnew.to.lnglat.split(","))
+      );
+    });
+  };
+  const clearRoute = () => {
+    if (currentRidingRoute) {
+      currentRidingRoute.clear();
+    }
+  };
+  execRoute();
+  watch(amap, "directionnew", execRoute);
+  // 不能直接选进去，load 时刻没有里面的元素，最深只能到 #dirbox。所以只能委托处理
+  jQuery("#dirbox").on(
+    "click",
+    'ul.dir_tab a:not([data-type="car"])',
+    clearRoute
   );
+  jQuery("#dirbox").on("click", ".line-search-clear", clearRoute);
 }
 patchSDKPlugins();
 addEventListener("load", setupRidingRouteEnhance);
-addEventListener("DOMContentLoaded", setupRidingRouteUI);
+setupRidingRouteUI();
 //#endregion 补充骑行导航规划
 
 //#region 导入 lucide 图标
