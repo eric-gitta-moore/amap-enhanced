@@ -2,9 +2,11 @@
 
 [🚀立即体验](https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.user.js)
 
-高德地图增强插件 - 为高德地图网页版添加更多实用功能
+高德地图增强插件 - 为高德地图网页版添加更多实用功能，增加图形绘制、收藏增强、...
 
-![Snipaste_2025-02-20_14-49-07](https://github.com/user-attachments/assets/f64fba0a-e2ab-4b29-b756-2bcd0d870072)
+<p align='center'><b>🧐一睹为快～</b></p>
+
+![](https://github.com/user-attachments/assets/f64fba0a-e2ab-4b29-b756-2bcd0d870072)
 
 ## 功能特性
 
