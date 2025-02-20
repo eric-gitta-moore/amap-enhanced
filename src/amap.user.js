@@ -33,7 +33,6 @@ const overlays = createArrayProxy(_internal_overlays, () => {
     callback();
   });
 });
-const overlayGroup = null;
 //#endregion globalVar
 
 //#region utils
