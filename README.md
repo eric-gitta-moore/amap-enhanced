@@ -15,6 +15,10 @@
       <td><img src="https://github.com/user-attachments/assets/0056a13c-d3b2-4cd5-93a4-9fa53025da0a" /></td>
       <td><img src="https://github.com/user-attachments/assets/96924455-9af8-413b-a811-e1065229dc11" /></td>
     </tr>
+    <tr>
+      <td><img src="https://github.com/user-attachments/assets/e5c38086-cfba-4887-bc2c-3115bdbe2167" /></td>
+      <td><img src="https://github.com/user-attachments/assets/2b051984-d5a5-40f3-89c8-532c3a79f0fa" /></td>
+    </tr>
   </tbody>
 </table>
 
