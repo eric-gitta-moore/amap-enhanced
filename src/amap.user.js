@@ -11,12 +11,15 @@
 // @run-at          document-start
 // @require         https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.js
 // @require         https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js
+// @require         https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.8/umd/popper.min.js
+// @require         https://unpkg.com/lucide@0.475.0/dist/umd/lucide.min.js
 // @resource        toastify.min.css https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css
 // @resource        viewer.min.css https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css
 // @downloadURL     https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.user.js
 // @updateURL       https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.meta.js
 // ==/UserScript==
 // @docs            https://lbs.amap.com/api/javascript-api-v2/summary
+// @docs            https://lbs.amap.com/api/webservice/summary
 // @docs            https://a.amap.com/jsapi/static/doc/20210906/index.html
 // @docs            https://www.tampermonkey.net/documentation.php
 
@@ -1412,7 +1415,168 @@ function patchSDKPlugins() {
     toast("高德地图 SDK 拦截成功，注入增强插件");
   });
 }
-function setupRidingRouteEnhance() {}
+function setupRidingRouteUI() {
+  GM_addStyle(`
+#planForm .dir_tab {
+  display: flex;
+  gap: 30px;
+}
+#ridingTab {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  margin: auto;
+}
+
+`);
+  const ridingUI = `
+<li> <a id="ridingTab" class="palntype_tab icondirtip" href="javascript:void(0)" data-type="riding"><i data-lucide="bike"></i></a> </li>
+`;
+
+  function injectUI() {
+    if (document.querySelector("#ridingTab")) return;
+    const panel = document.querySelector("#planForm");
+    const tabs = panel.querySelector("#trafficTab");
+    tabs.appendChild(parseDom(ridingUI));
+    refreshLucideIcons();
+    return !!tabs;
+  }
+  const dirbox = document.querySelector("#dirbox");
+  new MutationObserver((mutations, observer) => {
+    setTimeout(() => {
+      if (injectUI()) {
+        observer.disconnect();
+      }
+    }, 0);
+  }).observe(dirbox, {
+    childList: true,
+    subtree: true,
+  });
+
+  window.addEventListener("load", () => {
+    jQuery(dirbox).on("click", "#ridingTab", function () {
+      jQuery(".dir_submit").text("骑车去");
+    });
+  });
+}
+/**
+ * FN setupRidingRouteEnhance
+ *
+ * ##逆向信息:
+ *
+ * 高德地图具体实现是 jq 在 document 绑定了事件。直接全局搜 `"amap.dirp"` 可以定位到
+ *
+ * > 以下的代码中 `jQuery` 都是替换过的，可能要在原代码找到位置，然后在替换成实际的才能出来数据
+ *
+ * 这个是监听，一共有三个（可以通过 `jQuery._data(document).events` 获取所有绑定的 jq 自定义事件），这个是主要的
+ * ```js
+ * // 文件名 dir.07dde228b67a226e7249.js
+ * jQuery(document).on("amap.dirp", function(i, t) {
+ *    e.showDirlist(amap.dirp)
+ * })
+ * ```
+ *
+ * 最后具体显示在这里。具体的前端显示会有个模版，他们在后台可以配置，所以这里需要动态获取。
+ *
+ * > 然后在找请求链的时候，需要跳过 baxia.js，这个是阿里内部的 API 鉴权限流工具，叫做 霸下
+ *
+ * 这里是驾车的
+ * ```js
+ * var m = {
+ *     car: "dir-plan-car",
+ *     bus: "dir-plan-bus",
+ *     walk: "dir-plan-walk",
+ *     train: "dir-plan-train"
+ * }
+ *   , w = m[d]
+ *   , v = e(14);
+ * v.tplLoad({
+ *     filename: w,
+ *     data: h,
+ *     path: "/assets/biz/dir/tpl/",
+ *     callback: function(i) {
+ *         if (a.initDirlist(i, c),                                           // 初始化模版
+ *         "bus" == d && a.setTimePick(),
+ *         "bus" === d && h.railtype && "railway" === h.railtype && (d = "train"),
+ *         "train" === d && void 0 !== h.curopen) {
+ *             var t = parseInt(h.curopen);
+ *             a.showPlan(t)                                                  // 这里是显示具体方案
+ *         }
+ * ```
+ *
+ * 这里是步行的，比较完整
+ *
+ * ```js
+ * dirWalk: function(t) {
+ *    ...
+ *    AMap.plugin(["AMap.Walking"], function() {
+ *        r && (s = new AMap.LngLat(r.split(",")[0],r.split(",")[1])),
+ *        l && (p = new AMap.LngLat(l.split(",")[0],l.split(",")[1]));
+ *        var t = new AMap.Walking;
+ *        amap.walking = t,
+ *        t.search(s, p),
+ *        AMap.event.addListener(t, "complete", function(t) {
+ *            var i = a.buildWalkData(t);
+ *            n.id = n.id && n.id.split("-")[0] + "-from" || "from",
+ *            o.id = o.id && o.id.split("-")[0] + "-to" || "to",
+ *            i.frominfo = n,
+ *            i.toinfo = o,
+ *            amap.dirp = i,
+ *            e(document).trigger("amap.dirp", i)                // 服务端规划完成，渲染到前端
+ *        }),
+ *        AMap.event.addListener(t, "error", function(t) {
+ *            t.frominfo = n,
+ *            t.toinfo = o,
+ *            t.type = "walk",
+ *            t.nodirp = "true",
+ *            "20803" == t.infocode ? t.routes = [{
+ *                distanceNum: 100001
+ *            }] : t.routes = [],
+ *            amap.dirp = t,
+ *            e(document).trigger("amap.dirp", amap.dirp)
+ *        })
+ *    })
+ * ```
+ *
+ *
+ * 》》》》》》》》》》》》算了玛德，很多要插入到他们的 js 里面 hack 才行，还不如直接自己搞一个《《《《《《《《《《《《
+ */
+function setupRidingRouteEnhance() {
+  return;
+  //骑行导航
+  var riding = new AMap.Riding({
+    map: map,
+    panel: "planList",
+  });
+  //根据起终点坐标规划骑行路线
+  riding.search(
+    [116.397933, 39.844818],
+    [116.440655, 39.878694],
+    function (status, result) {
+      // result即是对应的骑行路线数据信息，相关数据结构文档请参考  https://lbs.amap.com/api/javascript-api/reference/route-search#m_RidingResult
+      if (status === "complete") {
+        toast("绘制骑行路线完成");
+      } else {
+        toast("骑行路线数据查询失败");
+        console.warn(`骑行路线数据查询失败`, result);
+      }
+    }
+  );
+}
 patchSDKPlugins();
-setupRidingRouteEnhance();
+addEventListener("load", setupRidingRouteEnhance);
+addEventListener("DOMContentLoaded", setupRidingRouteUI);
 //#endregion 补充骑行导航规划
+
+//#region 导入 lucide 图标
+function refreshLucideIcons() {
+  unsafeWindow.lucide = lucide;
+  lucide.createIcons();
+}
+addEventListener("load", () => {
+  refreshLucideIcons();
+  setTimeout(() => {
+    refreshLucideIcons();
+  }, 1000);
+});
+//#endregion 导入 lucide 图标
