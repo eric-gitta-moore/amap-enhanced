@@ -23,8 +23,17 @@
 
 ## 安装方法
 
+**注意事项**
+- **⚠ 使用正式版 (GitHub 源) 和预览版须翻墙.**
+- Tampermonkey 和 Tampermonkey BETA 都可以
+
+| 正式版 (jsDelivr 源)          | 正式版 (GitHub 源)                                 | 预览版                                            |
+| ---------------------------- | ------------------------------------------------ | ------------------------------------------------ |
+| [安装](https://cdn.jsdelivr.net/gh/eric-gitta-moore/amap-enhanced@main/src/amap.user.js) | [安装](https://raw.githubusercontent.com/eric-gitta-moore/amap-enhanced/main/src/amap.user.js) | [安装](https://raw.githubusercontent.com/eric-gitta-moore/amap-enhanced/main/src/amap.user.js) |
+
+
 1. 安装 [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey-beta/gcalenpjmijncebpfijmoaglllgpjagf) 浏览器扩展
-2. 点击 「[🚀立即体验](https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.user.js)」
+2. 点击上面任意一个正式版
 3. 安装即可
 4. 打开 [高德地图](https://www.amap.com/)，即可看到增强功能
 
