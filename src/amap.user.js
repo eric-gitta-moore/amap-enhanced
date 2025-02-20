@@ -1362,3 +1362,57 @@ window.addEventListener("load", () => {
   patchElementRemoveLogic();
 });
 //#endregion 元素删除逻辑补充
+
+//#region 补充骑行导航规划
+function patchSDKPlugins() {
+  const sdkApi = `webapi.amap.com/maps`;
+  const additionPlugins = ["AMap.Riding"];
+  let patched = false;
+
+  function pathSDKUrl(originSrc) {
+    const originURI = new URL(originSrc);
+    const originPlugins = (originURI.searchParams.get("plugin") || "")
+      .split(",")
+      .filter((e) => e);
+
+    const hackedPlugins = Array.from(
+      new Set(originPlugins.concat(additionPlugins))
+    );
+    originURI.searchParams.set("plugin", hackedPlugins.join(","));
+    return originURI.toString();
+  }
+
+  // tampermonkey UserScript 监听所有 document 操作，并且替换掉其中的 script src 或者阻止所有 script 加载
+  // 参考方案: https://stackoverflow.com/a/76592599/16834604
+  function hackDocumentLoad() {
+    new MutationObserver((mutations, observer) => {
+      let oldScript = mutations
+        .flatMap((e) => [...e.addedNodes])
+        .filter((e) => e.tagName == "SCRIPT")
+        .find((e) => e.src.includes(sdkApi));
+
+      if (oldScript) {
+        patched = true;
+        observer.disconnect();
+        // oldScript.remove();
+        oldScript.src = pathSDKUrl(oldScript.src);
+      }
+    }).observe(document, {
+      childList: true,
+      subtree: true,
+    });
+  }
+  hackDocumentLoad();
+
+  addEventListener("load", () => {
+    if (!patched) {
+      toast("高德地图 SDK 拦截失败，步行导航功能将无法注入");
+      return;
+    }
+    toast("高德地图 SDK 拦截成功，注入增强插件");
+  });
+}
+function setupRidingRouteEnhance() {}
+patchSDKPlugins();
+setupRidingRouteEnhance();
+//#endregion 补充骑行导航规划
