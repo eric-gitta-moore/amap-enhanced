@@ -4,9 +4,20 @@
 
 高德地图增强插件 - 为高德地图网页版添加更多实用功能，增加图形绘制、收藏增强、...
 
-<p align='center'><b>🧐一睹为快～</b></p>
+<table>
+  <thead>
+    <tr>
+      <th align=center colspan=2><b>🧐一睹为快～</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://github.com/user-attachments/assets/0056a13c-d3b2-4cd5-93a4-9fa53025da0a" /></td>
+      <td><img src="https://github.com/user-attachments/assets/c5124d46-da3a-45bb-8c6c-4854887c57ec" /></td>
+    </tr>
+  </tbody>
+</table>
 
-![](https://github.com/user-attachments/assets/0056a13c-d3b2-4cd5-93a4-9fa53025da0a)
 
 ## 功能特性
 
