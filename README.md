@@ -6,7 +6,7 @@
 
 <p align='center'><b>🧐一睹为快～</b></p>
 
-![](https://github.com/user-attachments/assets/f64fba0a-e2ab-4b29-b756-2bcd0d870072)
+![](https://github.com/user-attachments/assets/0056a13c-d3b2-4cd5-93a4-9fa53025da0a)
 
 ## 功能特性
 
