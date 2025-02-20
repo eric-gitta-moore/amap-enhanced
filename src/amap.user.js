@@ -128,7 +128,7 @@ function setupInjectCSS() {
     );
     GM_addStyle(
       `
-  .amap-copyright {
+  .app_download_box, .amap-common-download-panel, .amap-copyright {
       display: none !important;
   }
   .input-item {
@@ -1180,8 +1180,9 @@ function updateCircleAttachment(
     )
   );
   ext.radiusTextMarker.setText(
-    AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()).toFixed(2) +
-      "公里"
+    Number(
+      AMap.GeometryUtil.distance(...ext.radiusMarker.getPath()) / 1000
+    ).toFixed(2) + "公里"
   );
 }
 function handleCircleDragging(event) {
