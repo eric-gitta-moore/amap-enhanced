@@ -54,6 +54,21 @@
 - 点击地点的收藏按钮添加到收藏夹
 - 在收藏列表中可以添加图片和备注
 - 支持将重要的收藏点置顶显示
+- **管理收藏**需要前往高德地图 APP 操作
+
+<table>
+  <thead>
+    <tr>
+      <th align=center colspan=2><b>管理收藏</b>需要前往高德地图 APP 操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img style="width: 300px;" src="https://github.com/user-attachments/assets/156b45ea-bde6-4a7c-9d69-4d43a27a461a" /></td>
+      <td><img style="width: 300px;" src="https://github.com/user-attachments/assets/58033b34-1d2e-4328-9075-3afa4bb32613" /></td>
+    </tr>
+  </tbody>
+</table>
 
 ## 数据存储
 - 使用浏览器本地存储 (localStorage) 存储收藏数据，key 为 `SAVE_DATA_STORAGE_KEY`
@@ -63,3 +78,20 @@
 ## 开源协议
 
 本项目基于 MIT 协议开源。
+
+## FAQ
+### 为什么搜索不了地点，无法点击建筑物，提示 "抱歉，此地暂无详细信息！"
+<img width="313" alt="image" src="https://github.com/user-attachments/assets/a9955a6e-bc29-4857-824a-fb4409081e1b" />
+
+> 暂时无解～ 高德地图 Web API 有调用频率限制应该是，暂时没找到解法
+```json
+{
+    "ret": [
+        "FAIL_SYS_USER_VALIDATE",
+        "RGV587_ERROR::SM::哎哟喂,被挤爆啦,请稍后重试"
+    ],
+    "data": {
+        "url": "https://www.amap.com:443//service/poiInfo/_____tmd_____/punish?x5secdata=xxx&x5step=2&action=captcha&pureCaptcha="
+    }
+}
+```
