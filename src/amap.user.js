@@ -97,7 +97,7 @@ const { parseDom, toast } = setupUtils();
 
 //#region injectCSS
 function setupInjectCSS() {
-  window.addEventListener("load", () => {
+  addEventListener("load", () => {
     GM_addStyle(GM_getResourceText("toastify.min.css"));
     GM_addStyle(GM_getResourceText("viewer.min.css"));
     GM_addStyle(
@@ -725,7 +725,7 @@ function setupCursorData() {
     pixel: null,
     pos: null,
   };
-  window.addEventListener("load", () => {
+  addEventListener("load", () => {
     themap.on("mousemove", (e) => {
       cursorData.lnglat = e.lnglat;
       cursorData.pixel = e.pixel;
@@ -799,7 +799,7 @@ function setupViewjs() {
   unsafeWindow.refreshViewjs = refreshViewjs;
 
   // 监听图片点击
-  window.addEventListener("load", () => {
+  addEventListener("load", () => {
     setTimeout(() => {
       refreshViewjs();
     }, 1000);
@@ -874,7 +874,7 @@ function setupAMapSerialize() {
       });
     };
   }
-  window.addEventListener("load", hackAMapObjectSerialize);
+  addEventListener("load", hackAMapObjectSerialize);
 
   function serializeObject(obj) {
     if (!obj.toJSON) return null;
@@ -922,7 +922,7 @@ function setupToolUI() {
     }
   });
 }
-window.addEventListener("load", setupToolUI);
+addEventListener("load", setupToolUI);
 //#endregion MouseTool UI
 
 //#region utils
@@ -1049,7 +1049,7 @@ function setupMouseToolEvents() {
     }
   }
 
-  window.addEventListener("load", setupEvents);
+  addEventListener("load", setupEvents);
   return { closeMouseTool };
 }
 const { closeMouseTool } = setupMouseToolEvents();
@@ -1141,11 +1141,7 @@ function initMouseTool() {
     closeMouseTool();
   });
 }
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    initMouseTool();
-  }, 1000);
-});
+addEventListener("load", initMouseTool);
 //#endregion MouseTool 初始化
 
 //#region 圆圈附属元素相关
@@ -1279,7 +1275,7 @@ function initLatestAutosave() {
   lockOverlays();
   toast("已经自动锁定所有元素");
 }
-window.addEventListener("load", () => {
+addEventListener("load", () => {
   // 记录原本高德地图自带的 marker
   initalOverlayIds.push(...themap.getAllOverlays().map((e) => e._amap_id));
   setTimeout(() => {
@@ -1298,7 +1294,7 @@ function saveAllOverlays() {
   const saveData = allUserOverlays.map(serializeObject).filter((e) => e);
   localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
 }
-window.addEventListener("beforeunload", (e) => {
+addEventListener("beforeunload", (e) => {
   e.preventDefault();
   e.returnValue = "";
   saveAllOverlays();
@@ -1358,7 +1354,7 @@ function setupContextMenuEnhance() {
   };
 }
 const { patchRightclickEvent } = setupContextMenuEnhance();
-window.addEventListener("load", () => {
+addEventListener("load", () => {
   patchRightclickEvent();
 });
 //#endregion 右键菜单增强 - 删除元素
@@ -1375,7 +1371,7 @@ function patchElementRemoveLogic() {
     return originRemove.call(this);
   };
 }
-window.addEventListener("load", () => {
+addEventListener("load", () => {
   patchElementRemoveLogic();
 });
 //#endregion 元素删除逻辑补充
