@@ -22,16 +22,23 @@
 // @downloadURL     https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.user.js
 // @updateURL       https://github.com/eric-gitta-moore/amap-enhanced/raw/main/src/amap.meta.js
 // ==/UserScript==
+
 // @docs            https://lbs.amap.com/api/javascript-api-v2/summary
+// @docs            https://lbs.amap.com/demo/list/js-api
 // @docs            https://lbs.amap.com/api/webservice/summary
 // @docs            https://a.amap.com/jsapi/static/doc/20210906/index.html
 // @docs            https://www.tampermonkey.net/documentation.php
+
+const lodash = _.noConflict();
+const jQuery = $.noConflict();
 
 //#region globalVar
 const SAVE_DATA_STORAGE_KEY = "SAVE_DATA_STORAGE_KEY";
 const initalOverlayIds = [];
 // 骑行导航对象
 let currentRidingRoute = null;
+// 最近一次右键点击的元素，关联功能：右键删除、右键编辑
+let lastClickOverlayEvent = null;
 
 const _internal_overlays = [];
 // 每个overlay添加或删除时，会触发这个回调重新绑定右键事件，辅助右键删除功能。
@@ -42,8 +49,6 @@ const overlays = createArrayProxy(_internal_overlays, () => {
     callback();
   });
 });
-
-const lodash = _.noConflict();
 //#endregion globalVar
 
 //#region utils
@@ -146,6 +151,9 @@ function setupInjectCSS() {
     );
     GM_addStyle(
       `
+.none {
+  display: none;
+}
 .force-none {
   display: none !important;
   opacity: 0 !important;
@@ -684,6 +692,9 @@ function setupTemplate() {
     <li class="menu_item" id="menuClearMarker">
         <i class="iconfont icon-clearmap"></i><span>清除标记物</span>
     </li>
+    <li class="menu_item" id="menuEditMarker">
+        <i class="iconfont icon-bookedit"></i><span>编辑标记物</span>
+    </li>
 </ul>
 `;
 
@@ -716,6 +727,15 @@ function setupTemplate() {
       </div>
   </div>
   `;
+
+  const cursorInfoWindowTpl = `
+<div class="input-card cursor-info-window">
+  <h4><span><i data-lucide="circle-play" class="none"></i><i data-lucide="circle-pause" class="none"></i></span>鼠标右键所在经纬度：</h4>
+  <div class="input-item">
+    <input type="text" readonly="true" id="cursor-lnglat">
+  </div>
+</div>
+`;
   return {
     favListTpl,
     favInfoWindowTpl,
@@ -723,6 +743,7 @@ function setupTemplate() {
     mouseToolPanelUI,
     mouseToolUI,
     contextMenuUI,
+    cursorInfoWindowTpl,
   };
 }
 const {
@@ -732,6 +753,7 @@ const {
   mouseToolPanelUI,
   mouseToolUI,
   contextMenuUI,
+  cursorInfoWindowTpl,
 } = setupTemplate();
 //#endregion template
 
@@ -1310,10 +1332,19 @@ function saveAllOverlays() {
   // 所有overlays转成json保存
   const saveData = allUserOverlays.map(serializeObject).filter((e) => e);
   localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(saveData));
+  toast("已经自动保存所有标记物");
 }
 addEventListener("beforeunload", (e) => {
   e.preventDefault();
   e.returnValue = "";
+
+  if (currentEditor) {
+    // 退出前关闭所有编辑器，不然会有编辑器的元素残留
+    currentEditor.close();
+    currentEditor = null;
+    toast("已经自动关闭编辑");
+  }
+
   saveAllOverlays();
 });
 //#endregion 自动保存 自动加载
@@ -1322,7 +1353,7 @@ addEventListener("beforeunload", (e) => {
 
 //#region 右键菜单增强 - 删除元素
 function setupContextMenuEnhance() {
-  let lastClickOverlayEvent = null;
+  lastClickOverlayEvent = null;
   const rightclickCallback = (e) => (lastClickOverlayEvent = e);
   function reapplyRightclickEvent() {
     console.log("reapplyRightclickEvent");
@@ -1393,10 +1424,18 @@ addEventListener("load", () => {
 });
 //#endregion 元素删除逻辑补充
 
-//#region 补充骑行导航规划
+//#region SDK Plugins 注入
 function patchSDKPlugins() {
   const sdkApi = `webapi.amap.com/maps`;
-  const additionPlugins = ["AMap.Riding"];
+  const additionPlugins = [
+    "AMap.Riding",
+    "AMap.CircleEditor",
+    "AMap.PolygonEditor",
+    "AMap.PolylineEditor",
+    "AMap.RectangleEditor",
+    "AMap.BezierCurveEditor",
+    "AMap.EllipseEditor",
+  ];
   let patched = false;
 
   function pathSDKUrl(originSrc) {
@@ -1442,6 +1481,10 @@ function patchSDKPlugins() {
     toast("高德地图 SDK 拦截成功，注入增强插件");
   });
 }
+patchSDKPlugins();
+//#endregion SDK Plugins 注入
+
+//#region 补充骑行导航规划
 function setupRidingRouteUI() {
   GM_addStyle(`
 #planForm .dir_tab {
@@ -1678,7 +1721,6 @@ function setupRidingRouteEnhance() {
   );
   jQuery("#dirbox").on("click", ".line-search-clear", clearRoute);
 }
-patchSDKPlugins();
 addEventListener("load", setupRidingRouteEnhance);
 setupRidingRouteUI();
 //#endregion 补充骑行导航规划
@@ -1695,3 +1737,136 @@ addEventListener("load", () => {
   }, 1000);
 });
 //#endregion 导入 lucide 图标
+
+//#region 编辑标记物
+let currentEditor = null;
+function patchOverlayEditHandler() {
+  AMap.Circle.prototype.onEditOpen = function () {
+    console.log("circle edit open");
+    // 编辑开始，隐藏附属的几个元素
+    const ext = this.getExtData();
+    Object.values(ext).forEach((lay) => {
+      lay?.hide?.();
+    });
+  };
+  AMap.Circle.prototype.onEditEnd = function (e) {
+    const { type, event } = e;
+    console.log("circle edit end", e);
+    if (type === "adjust") {
+      // 记录最后半径交点在哪里
+      this._editedRadiusEndLngLat = event.lnglat;
+
+      // @bug 很奇怪，set 进去之后，到了 end 事件时候 extData 就复原了
+      // this.setExtData({
+      //   ...this.getExtData(),
+      //   // 编辑后的半径交点
+      //   editedRadiusEndLngLat: event.lnglat,
+      // });
+    } else if (type === "end") {
+      // 编辑结束，更新同步的几个元素
+      updateCircleAttachment({ obj: this }, null, false, {
+        // 半径与圆周的交点
+        lnglat: this._editedRadiusEndLngLat,
+      });
+      // delete this.getExtData().editedRadiusEndLngLat;
+      Object.values(this.getExtData()).forEach((lay) => {
+        lay?.show?.();
+      });
+    }
+  };
+}
+function applyMarkerEdit({ type, instace }) {
+  const editorMapper = {
+    Circle: AMap.CircleEditor,
+    Polygon: AMap.PolygonEditor,
+    Polyline: AMap.PolylineEditor,
+    Rectangle: AMap.RectangleEditor,
+    BezeirCurve: AMap.BezierCurveEditor,
+    EllipseEditor: AMap.EllipseEditor,
+  };
+  currentEditor = new editorMapper[type](themap, instace);
+  instace.onEditOpen?.();
+  currentEditor.open();
+  toast(`开始编辑: ${type}，按 ESC 退出编辑`);
+
+  // 编辑移动过程中使用 adjust 事件也没法监听到实时的编辑，只能用 end 事件
+  currentEditor.on("end", ({ target }) => {
+    target.onEditEnd?.({ type: "end", event: { target } });
+  });
+  currentEditor.on("adjust", ({ target, lnglat }) => {
+    target.onEditEnd?.({ type: "adjust", event: { target, lnglat } });
+  });
+  return currentEditor;
+}
+function handleMenuEditMarkerClick() {
+  if (!lastClickOverlayEvent) {
+    toast("没有记录到右键选中的标记物，请重试");
+    return;
+  }
+  const target = lastClickOverlayEvent.target;
+  const type = target.className.split(".")[1];
+  applyMarkerEdit({ type, instace: target });
+}
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "Escape" || !currentEditor) return;
+  e.preventDefault(); // 阻止浏览器默认的撤销行为
+  const targetLay = currentEditor.getTarget();
+  currentEditor.close();
+  currentEditor = null;
+  targetLay.setOptions({
+    draggable: false,
+  });
+  toast("已退出编辑，已动锁定该元素");
+});
+addEventListener("load", () => {
+  jQuery("#themap").on("click", "#menuEditMarker", handleMenuEditMarkerClick);
+});
+addEventListener("load", patchOverlayEditHandler);
+//#endregion 编辑标记物
+
+//#region 显示鼠标所在经纬度
+function setupCursorInfoWindowUI() {
+  GM_addStyle(`
+.cursor-info-window.input-card {
+  left: 1rem;
+  bottom: 4rem;
+  width: 10rem;
+  gap: 0.2rem;
+}
+.cursor-info-window.input-card h4 {
+  color: black;
+  margin-top: 0;
+  font-size: 0.8rem;
+}
+.cursor-info-window.input-card .input-item {
+  height: 1.2rem;
+}
+.cursor-info-window.input-card .input-item input {
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  height: 100%;
+}
+
+
+`);
+  document.body.appendChild(parseDom(cursorInfoWindowTpl));
+}
+function setupCursorInfoWindow(open = true) {
+  const infoEl = jQuery("#cursor-lnglat");
+  const loadInfo = (lnglat) => {
+    if (!open) return;
+    if (lnglat) {
+      infoEl.val(lnglat.toString());
+      return;
+    }
+    const cursorLnglat = cursorData.lnglat;
+    if (!cursorData.lnglat) return;
+    infoEl.val(cursorLnglat.toString());
+  };
+  themap.on("rightclick", function (event) {
+    loadInfo(event.lnglat);
+  });
+}
+addEventListener("DOMContentLoaded", setupCursorInfoWindowUI);
+addEventListener("load", setupCursorInfoWindow);
+//#endregion 显示鼠标所在经纬度
