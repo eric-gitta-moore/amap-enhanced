@@ -101,6 +101,7 @@ function setupInjectCSS() {
   addEventListener("load", () => {
     GM_addStyle(GM_getResourceText("toastify.min.css"));
     GM_addStyle(GM_getResourceText("viewer.min.css"));
+    GM_addStyle(GM_getResourceText("layer.min.css"));
     GM_addStyle(
       `
   .favphoto::-webkit-scrollbar { 
