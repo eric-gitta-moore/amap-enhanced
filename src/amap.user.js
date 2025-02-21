@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @namespace       https://github.com/eric-gitta-moore/amap-enhanced
-// @version         2025.02.21.2
+// @version         2025.02.21.3
 // @description     高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @author          https://eric-gitta-moore.github.io/
 // @match           https://www.amap.com/*
@@ -9,6 +9,8 @@
 // @grant           GM_addStyle
 // @grant           GM_getResourceText
 // @run-at          document-start
+// @require         https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js
+// @require         https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js
 // @require         https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.js
 // @resource        toastify.min.css https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css
 // @require         https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js
@@ -40,6 +42,8 @@ const overlays = createArrayProxy(_internal_overlays, () => {
     callback();
   });
 });
+
+const lodash = _.noConflict();
 //#endregion globalVar
 
 //#region utils
@@ -93,6 +97,12 @@ function setupUtils() {
     toast,
   };
 }
+function setupExpose() {
+  unsafeWindow.$Toastify = Toastify;
+  unsafeWindow.$layer = layer;
+  unsafeWindow.$Viewer = Viewer;
+}
+setupExpose();
 const { parseDom, toast } = setupUtils();
 //#endregion utils
 
@@ -302,6 +312,11 @@ function setupInjectCSS() {
   `
     );
   });
+}
+function injectJavaScript(text) {
+  const script = document.createElement("script");
+  script.textContent = text;
+  (document.head || document.documentElement).appendChild(script);
 }
 setupInjectCSS();
 //#endregion injectCSS
@@ -1461,7 +1476,18 @@ function setupRidingRouteUI() {
       if (document.querySelector("#ridingTab")) return;
       const panel = document.querySelector("#planForm");
       const tabs = panel.querySelector("#trafficTab");
-      tabs.appendChild(parseDom(ridingUI));
+      const ridingEl = parseDom(ridingUI);
+      tabs.appendChild(ridingEl);
+
+      let layerTipIdx = null;
+      ridingEl.addEventListener("mouseenter", () => {
+        if (layerTipIdx) return;
+        layerTipIdx = layer.tips("骑行", ridingEl, { tips: 3 });
+      });
+      ridingEl.addEventListener("mouseleave", () => {
+        layerTipIdx && layer.close(layerTipIdx);
+        layerTipIdx = null;
+      });
       refreshLucideIcons();
       return !!tabs;
     }
@@ -1581,11 +1607,11 @@ function setupRidingRouteEnhance() {
   /**
    * 算了还是不同步官方模版了，还要处理 mouseover 时候高亮路段，估计没法搞
    * 要重新绑定里面的事件 `me.listener.routeStepItem`，不然无法触发 `me._highlightOverlay`
-   * @param {*} data 
+   * @param {*} data
    */
-  const renderRidingTpl = (data)=>{
-    const amapRenderTpl = _.template
-  }
+  // const renderRidingTpl = (data) => {
+  //   const amapRenderTpl = _.template;
+  // };
   const execRoute = () => {
     const isRiding = jQuery("#ridingTab").hasClass("current");
     if (!isRiding) return;
