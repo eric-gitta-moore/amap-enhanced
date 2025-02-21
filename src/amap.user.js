@@ -1576,6 +1576,14 @@ function setupRidingRouteUI() {
 function setupRidingRouteEnhance() {
   // 全局变量
   currentRidingRoute = null;
+  /**
+   * 算了还是不同步官方模版了，还要处理 mouseover 时候高亮路段，估计没法搞
+   * 要重新绑定里面的事件 `me.listener.routeStepItem`，不然无法触发 `me._highlightOverlay`
+   * @param {*} data 
+   */
+  const renderRidingTpl = (data)=>{
+    const amapRenderTpl = _.template
+  }
   const execRoute = () => {
     const isRiding = jQuery("#ridingTab").hasClass("current");
     if (!isRiding) return;
@@ -1584,6 +1592,23 @@ function setupRidingRouteEnhance() {
       currentRidingRoute = null;
     }
     const dirnew = amap.directionnew;
+    /*
+      模版绘制函数在这个插件的代码里面，和系统自带的请求 dir-plan-walk.html 模版不一样。html 模版可以用 `_.template(data)` 来渲染
+        me.view.createOpenitemDiv = function(index, title, data, isDisplay) {
+            var rides = data.routes[index].rides
+              , r = [];
+            r.push('<dl class="plan plan-nobus">'),
+            r.push("    <dt class=\"start\"><div class='beforedt'></div><div class='afterdt'></div><b>" + data.start.name + "</b></dt>");
+            for (var step, i = 0; i < rides.length; i++)
+                step = rides[i],
+                r.push(' <dt class="route turn-' + me.getSigns(step.action) + '"  index="' + index + '">                '),
+                r.push("  <div class='beforedt'></div><div class='afterdt'></div>       " + step.instruction),
+                r.push(" </dt>");
+            return r.push("    <dt class=\"end\"><div class='beforedt'></div><b>" + data.end.name + "</b></dt>"),
+            r.push("</dl>"),
+            r
+        }
+    */
     themap.plugin(["AMap.Riding"], function () {
       //加载步行导航插件
       currentRidingRoute = new AMap.Riding({
