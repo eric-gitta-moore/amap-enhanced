@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @namespace       https://github.com/eric-gitta-moore/amap-enhanced
-// @version         2025.02.21.4
+// @version         2025.02.21.5
 // @description     高德地图增强插件 - 为高德地图网页版添加更多实用功能
 // @author          https://eric-gitta-moore.github.io/
 // @match           https://www.amap.com/*
@@ -1551,15 +1551,15 @@ function setupRidingRouteUI() {
 
   addEventListener("load", () => {
     const isRiding = jQuery("#ridingTab").hasClass("current");
-    isRiding && jQuery("#planList").addClass("riding-plan");
+    isRiding && jQuery("#dirbox").addClass("riding-plan");
 
-    jQuery("#planForm .dir_tab").on("click", function () {
-      jQuery("#planList").removeClass("riding-plan");
+    jQuery("#dirbox").on("click", "#planForm .dir_tab li a:not(#ridingTab)", function () {
+      jQuery("#dirbox").removeClass("riding-plan");
     });
-    jQuery(dirbox).on("click", "#ridingTab", function () {
+    jQuery("#dirbox").on("click", "#ridingTab", function () {
       jQuery(".dir_submit").text("骑车去");
       // 修复路线规划面板的 css 需要
-      jQuery("#planList").addClass("riding-plan");
+      jQuery("#dirbox").addClass("riding-plan");
     });
   });
 }
