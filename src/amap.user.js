@@ -1178,6 +1178,7 @@ function initMouseTool() {
     obj.setExtData({ ...obj.getExtData(), drawing: false });
     overlays.push(obj);
     closeMouseTool();
+    toast("已绘制完成");
   });
 }
 addEventListener("load", initMouseTool);
