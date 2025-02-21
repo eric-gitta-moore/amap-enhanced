@@ -1553,9 +1553,13 @@ function setupRidingRouteUI() {
     const isRiding = jQuery("#ridingTab").hasClass("current");
     isRiding && jQuery("#dirbox").addClass("riding-plan");
 
-    jQuery("#dirbox").on("click", "#planForm .dir_tab li a:not(#ridingTab)", function () {
-      jQuery("#dirbox").removeClass("riding-plan");
-    });
+    jQuery("#dirbox").on(
+      "click",
+      "#planForm .dir_tab li a:not(#ridingTab)",
+      function () {
+        jQuery("#dirbox").removeClass("riding-plan");
+      }
+    );
     jQuery("#dirbox").on("click", "#ridingTab", function () {
       jQuery(".dir_submit").text("骑车去");
       // 修复路线规划面板的 css 需要
@@ -1871,3 +1875,19 @@ function setupCursorInfoWindow(open = true) {
 addEventListener("DOMContentLoaded", setupCursorInfoWindowUI);
 addEventListener("load", setupCursorInfoWindow);
 //#endregion 显示鼠标所在经纬度
+
+//#region 优化 API error 提示
+registerXHRInterceptor(
+  (xhr) => true,
+  (xhr) => {
+    if (!["", "text", "json"].includes(xhr.responseType)) return;
+    try {
+      const data = JSON.parse(xhr.responseText);
+      if (JSON.stringify(data.ret).includes("FAIL_SYS_USER_VALIDATE")) {
+        toast(data.ret[1] || "API 限制请求失败");
+        return;
+      }
+    } catch (e) {}
+  }
+);
+//#endregion 优化 API error 提示
